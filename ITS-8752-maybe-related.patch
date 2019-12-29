@@ -1,0 +1,68 @@
+From 09aea7d84492dbfe61adf197214f206d99b43469 Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Wed, 5 Dec 2018 10:41:47 +0000
+Subject: [PATCH 062/109] ITS#8752 (maybe related)
+
+Avoid incremental access to user-supplied bv in dupbv
+---
+ libraries/liblber/memory.c | 27 ++++++++++++++++-----------
+ 1 file changed, 16 insertions(+), 11 deletions(-)
+
+diff --git a/libraries/liblber/memory.c b/libraries/liblber/memory.c
+index a99f5044c..aa1d1e123 100644
+--- a/libraries/liblber/memory.c
++++ b/libraries/liblber/memory.c
+@@ -482,7 +482,7 @@ struct berval *
+ ber_dupbv_x(
+ 	struct berval *dst, struct berval *src, void *ctx )
+ {
+-	struct berval *new;
++	struct berval *new, tmp;
+ 
+ 	if( src == NULL ) {
+ 		ber_errno = LBER_ERROR_PARAM;
+@@ -490,7 +490,7 @@ ber_dupbv_x(
+ 	}
+ 
+ 	if ( dst ) {
+-		new = dst;
++		new = &tmp;
+ 	} else {
+ 		if(( new = ber_memalloc_x( sizeof(struct berval), ctx )) == NULL ) {
+ 			return NULL;
+@@ -500,18 +500,23 @@ ber_dupbv_x(
+ 	if ( src->bv_val == NULL ) {
+ 		new->bv_val = NULL;
+ 		new->bv_len = 0;
+-		return new;
+-	}
++	} else {
+ 
+-	if(( new->bv_val = ber_memalloc_x( src->bv_len + 1, ctx )) == NULL ) {
+-		if ( !dst )
+-			ber_memfree_x( new, ctx );
+-		return NULL;
++		if(( new->bv_val = ber_memalloc_x( src->bv_len + 1, ctx )) == NULL ) {
++			if ( !dst )
++				ber_memfree_x( new, ctx );
++			return NULL;
++		}
++
++		AC_MEMCPY( new->bv_val, src->bv_val, src->bv_len );
++		new->bv_val[src->bv_len] = '\0';
++		new->bv_len = src->bv_len;
+ 	}
+ 
+-	AC_MEMCPY( new->bv_val, src->bv_val, src->bv_len );
+-	new->bv_val[src->bv_len] = '\0';
+-	new->bv_len = src->bv_len;
++	if ( dst ) {
++		*dst = *new;
++		new = dst;
++	}
+ 
+ 	return new;
+ }
+-- 
+2.19.1
+

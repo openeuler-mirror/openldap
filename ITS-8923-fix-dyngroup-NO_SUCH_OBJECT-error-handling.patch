@@ -1,0 +1,70 @@
+From 84e0958b28fccb5cc36de90094aebc6902145c07 Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Wed, 3 Oct 2018 21:58:32 +0100
+Subject: [PATCH 049/109] ITS#8923 fix dyngroup NO_SUCH_OBJECT error handling
+
+---
+ servers/slapd/backend.c       | 2 +-
+ tests/data/dynlist.out        | 3 +++
+ tests/scripts/test044-dynlist | 9 +++++----
+ 3 files changed, 9 insertions(+), 5 deletions(-)
+
+diff --git a/servers/slapd/backend.c b/servers/slapd/backend.c
+index 445a2cb57..0a3dafab8 100644
+--- a/servers/slapd/backend.c
++++ b/servers/slapd/backend.c
+@@ -1520,7 +1520,7 @@ fe_acl_group(
+ 							op->o_private = o_priv;
+ 							if ( rc2 != 0 ) {
+ 								/* give up... */
+-								rc = LDAP_OTHER;
++								rc = (rc2 == LDAP_NO_SUCH_OBJECT) ? rc2 : LDAP_OTHER;
+ 								goto loopit;
+ 							}
+ 						}
+diff --git a/tests/data/dynlist.out b/tests/data/dynlist.out
+index 429039b67..8caf0e22f 100644
+--- a/tests/data/dynlist.out
++++ b/tests/data/dynlist.out
+@@ -198,6 +198,9 @@ memberURL: ldap:///ou=People,dc=example,dc=com??sub?(objectClass=person)
+ # Testing list compare...
+ TRUE
+ 
++# Testing list compare... (should return FALSE)
++FALSE
++
+ # Testing list compare (should return FALSE)...
+ FALSE
+ 
+diff --git a/tests/scripts/test044-dynlist b/tests/scripts/test044-dynlist
+index e5a0c47dc..8caf50ded 100755
+--- a/tests/scripts/test044-dynlist
++++ b/tests/scripts/test044-dynlist
+@@ -477,12 +477,12 @@ $LDAPCOMPARE -h $LOCALHOST -p $PORT1 \
+ RC=$?
+ case $RC in
+ 5)
+-	echo "ldapcompare returned FALSE ($RC)!"
+-	test $KILLSERVERS != no && kill -HUP $KILLPIDS
+-	exit $RC
++	echo "ldapcompare returned FALSE ($RC)"
+ 	;;
+ 6)
+-	echo "ldapcompare returned TRUE ($RC)"
++	echo "ldapcompare returned TRUE ($RC)!"
++	test $KILLSERVERS != no && kill -HUP $KILLPIDS
++	exit $RC
+ 	;;
+ 0)
+ 	echo "ldapcompare returned success ($RC)!"
+@@ -497,6 +497,7 @@ case $RC in
+ esac
+ echo "" >> $SEARCHOUT
+ 
++CMPDN="$BJORNSDN"
+ echo "Testing list compare (should return FALSE)..."
+ echo "# Testing list compare (should return FALSE)..." >> $SEARCHOUT
+ $LDAPCOMPARE -h $LOCALHOST -p $PORT1 \
+-- 
+2.19.1
+

@@ -1,0 +1,22 @@
+diff --git a/libraries/libldap/tls_m.c b/libraries/libldap/tls_m.c
+index fb5554e..7d5ffea 100644
+--- a/libraries/libldap/tls_m.c
++++ b/libraries/libldap/tls_m.c
+@@ -557,7 +557,16 @@ nss_parse_ciphers(const char *cipherstr, int cipher_list[ciphernum])
+ 			}
+ 		} else if (!strcmp(cipher, "DEFAULT")) {
+ 			for (i=0; i<ciphernum; i++) {
+-				cipher_list[i] = ciphers_def[i].enabled == SSL_ALLOWED ? 1 : 0;
++				PRBool enabled;
++				if (SSL_CipherPrefGetDefault(ciphers_def[i].num, &enabled) == SECSuccess) {
++					if (!(ciphers_def[i].attr & SSL_eNULL)) {
++						cipher_list[i] = enabled == SSL_ALLOWED ? 1 : 0;
++					} else {
++						cipher_list[i] = -1;
++					}
++				} else {
++					cipher_list[i] = -1;
++				}
+ 			}
+ 		} else {
+ 			int mask = 0;

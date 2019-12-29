@@ -1,0 +1,29 @@
+From 84a844cfd294a93b4fa2516a82d4f0e35e2c3d3d Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Fri, 9 Nov 2018 21:16:10 +0000
+Subject: [PATCH 066/109] ITS#8932 check rdnNormalize success
+
+---
+ servers/slapd/bconfig.c | 6 +++++-
+ 1 file changed, 5 insertions(+), 1 deletion(-)
+
+diff --git a/servers/slapd/bconfig.c b/servers/slapd/bconfig.c
+index 250f14100..4c7d53935 100644
+--- a/servers/slapd/bconfig.c
++++ b/servers/slapd/bconfig.c
+@@ -4609,7 +4609,11 @@ config_renumber_one( Operation *op, SlapReply *rs, CfEntryInfo *parent,
+ 	/* Do the equivalent of ModRDN */
+ 	/* Replace DN / NDN */
+ 	newrdn.bv_len = ptr1 - newrdn.bv_val;
+-	rdnNormalize( 0, NULL, NULL, &newrdn, &nnewrdn, NULL );
++	rc = rdnNormalize( 0, NULL, NULL, &newrdn, &nnewrdn, NULL );
++	if ( rc ) {
++		free( newrdn.bv_val );
++		return LDAP_NAMING_VIOLATION;
++	}
+ 	rc = config_rename_one( op, rs, e, parent, a, &newrdn, &nnewrdn, use_ldif );
+ 
+ 	free( nnewrdn.bv_val );
+-- 
+2.19.1
+
