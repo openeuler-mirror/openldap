@@ -1,0 +1,32 @@
+From 42d441c810d7b6a6d72625d919e944a38363d6c8 Mon Sep 17 00:00:00 2001
+From: Quanah Gibson-Mount <quanah@openldap.org>
+Date: Mon, 31 Dec 2018 18:24:12 +0000
+Subject: [PATCH 078/109] ITS#8948 - Fix BDB lib to only be linked with static
+ backend
+
+---
+ configure.in | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/configure.in b/configure.in
+index 2a4d29f78..2bd2a4382 100644
+--- a/configure.in
++++ b/configure.in
+@@ -1899,7 +1899,13 @@ if test $ol_enable_bdb/$ol_enable_hdb != no/no; then
+ 		BDB_LIBS="$BDB_LIBS $ol_cv_lib_db"
+ 	fi
+ 
+-	SLAPD_LIBS="$SLAPD_LIBS \$(BDB_LIBS)"
++	dnl link BDB library to slapd when there is a
++	dnl static BDB based backend in use
++	if test $ol_enable_bdb/$ol_enable_hdb != mod/mod ; then
++		if test $ol_enable_bdb = yes -o $ol_enable_hdb = yes ; then
++			SLAPD_LIBS="$SLAPD_LIBS \$(BDB_LIBS)"
++		fi
++	fi
+ 
+ 	ol_link_bdb=yes 
+ fi
+-- 
+2.19.1
+

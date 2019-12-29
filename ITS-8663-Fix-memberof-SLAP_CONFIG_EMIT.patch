@@ -1,0 +1,34 @@
+From 7553afa6fd524181bd5d7c5fa8808bbd0fc09864 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Kuzn=C3=ADk?= <ondra@openldap.org>
+Date: Mon, 14 Jan 2019 11:44:35 +0000
+Subject: [PATCH 086/109] ITS#8663 Fix memberof SLAP_CONFIG_EMIT
+
+---
+ servers/slapd/overlays/memberof.c | 8 ++------
+ 1 file changed, 2 insertions(+), 6 deletions(-)
+
+diff --git a/servers/slapd/overlays/memberof.c b/servers/slapd/overlays/memberof.c
+index 54c24682a..7e0c8f22b 100644
+--- a/servers/slapd/overlays/memberof.c
++++ b/servers/slapd/overlays/memberof.c
+@@ -1895,15 +1895,11 @@ mo_cf_gen( ConfigArgs *c )
+ 			break;
+ 
+ 		case MO_MEMBER_AD:
+-			if ( mo->mo_ad_member != NULL ){
+-				value_add_one( &c->rvalue_vals, &mo->mo_ad_member->ad_cname );
+-			}
++			c->value_ad = mo->mo_ad_member;
+ 			break;
+ 
+ 		case MO_MEMBER_OF_AD:
+-			if ( mo->mo_ad_memberof != NULL ){
+-				value_add_one( &c->rvalue_vals, &mo->mo_ad_memberof->ad_cname );
+-			}
++			c->value_ad = mo->mo_ad_memberof;
+ 			break;
+ 
+ 		default:
+-- 
+2.19.1
+

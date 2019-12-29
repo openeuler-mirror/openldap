@@ -1,0 +1,25 @@
+From 83ade79c715dd9516dd2ba0675094b86d630c7b8 Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Mon, 24 Sep 2018 13:47:09 +0100
+Subject: [PATCH 046/109] ITS#8918 fix typo
+
+---
+ servers/slapd/sasl.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/servers/slapd/sasl.c b/servers/slapd/sasl.c
+index 73ac2a8a8..64e64d1d9 100644
+--- a/servers/slapd/sasl.c
++++ b/servers/slapd/sasl.c
+@@ -323,7 +323,7 @@ slap_auxprop_lookup(
+ 
+ 	/* we don't know anything about this, ignore it */
+ 	if ( !conn ) {
+-		rc == LDAP_SUCCESS;
++		rc = LDAP_SUCCESS;
+ 		goto done;
+ 	}
+ 
+-- 
+2.19.1
+

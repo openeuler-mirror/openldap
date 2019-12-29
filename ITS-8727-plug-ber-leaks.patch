@@ -1,0 +1,32 @@
+From 11320a9156e1306c251b27443439dc2e1db0107b Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Tue, 17 Jan 2017 11:35:54 +0000
+Subject: [PATCH 076/109] ITS#8727 plug ber leaks
+
+---
+ libraries/libldap/request.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libraries/libldap/request.c b/libraries/libldap/request.c
+index 31145432f..7d2d7a458 100644
+--- a/libraries/libldap/request.c
++++ b/libraries/libldap/request.c
+@@ -315,6 +315,7 @@ ldap_send_server_request(
+ 		LDAP_MUTEX_UNLOCK( &ld->ld_options.ldo_mutex );
+ 		if ( rc == -1 ) {
+ 			ld->ld_errno = LDAP_ENCODING_ERROR;
++			ber_free( ber, 1 );
+ 			LDAP_CONN_UNLOCK_IF(m_noconn);
+ 			return rc;
+ 		}
+@@ -334,6 +335,7 @@ ldap_send_server_request(
+ 		rc = -1;
+ 	}
+ 	if ( rc ) {
++		ber_free( ber, 1 );
+ 		LDAP_CONN_UNLOCK_IF(m_noconn);
+ 		return rc;
+ 	}
+-- 
+2.19.1
+

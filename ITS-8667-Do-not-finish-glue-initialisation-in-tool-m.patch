@@ -1,0 +1,26 @@
+From 8c09d9a132d148ebad1e7f303ae99d357815ffff Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Kuzn=C3=ADk?= <ondra@openldap.org>
+Date: Wed, 27 Jun 2018 10:32:04 +0100
+Subject: [PATCH 021/109] ITS#8667 Do not finish glue initialisation in tool
+ mode unless requested
+
+---
+ servers/slapd/backglue.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/servers/slapd/backglue.c b/servers/slapd/backglue.c
+index 53c92448f..c2cfed45c 100644
+--- a/servers/slapd/backglue.c
++++ b/servers/slapd/backglue.c
+@@ -1312,7 +1312,7 @@ glue_db_init(
+ 
+ 	SLAP_DBFLAGS( be ) |= SLAP_DBFLAG_GLUE_INSTANCE;
+ 
+-	if ( ga_list ) {
++	if ( ga_list && ( slapMode & SLAP_SERVER_MODE ) ) {
+ 		be->bd_info = (BackendInfo *)oi;
+ 		glue_sub_attach( 1 );
+ 	}
+-- 
+2.19.1
+

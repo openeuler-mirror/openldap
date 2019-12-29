@@ -1,0 +1,34 @@
+From 55daae4afc3cd2ee6dcbd97a73260113935d2676 Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Fri, 25 Jan 2019 18:11:58 +0000
+Subject: [PATCH 096/109] ITS#8472 only do index cleanup if DB is running
+
+---
+ servers/slapd/back-mdb/config.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/servers/slapd/back-mdb/config.c b/servers/slapd/back-mdb/config.c
+index df9db5edd..c404e58e7 100644
+--- a/servers/slapd/back-mdb/config.c
++++ b/servers/slapd/back-mdb/config.c
+@@ -260,6 +260,7 @@ mdb_cf_cleanup( ConfigArgs *c )
+ 	}
+ 
+ 	if ( mdb->mi_flags & MDB_OPEN_INDEX ) {
++		mdb->mi_flags ^= MDB_OPEN_INDEX;
+ 		rc = mdb_attr_dbs_open( c->be, NULL, &c->reply );
+ 		if ( rc )
+ 			rc = LDAP_OTHER;
+@@ -631,8 +632,8 @@ mdb_cf_gen( ConfigArgs *c )
+ 			c->argc - 1, &c->argv[1], &c->reply);
+ 
+ 		if( rc != LDAP_SUCCESS ) return 1;
+-		mdb->mi_flags |= MDB_OPEN_INDEX;
+ 		if ( mdb->mi_flags & MDB_IS_OPEN ) {
++			mdb->mi_flags |= MDB_OPEN_INDEX;
+ 			c->cleanup = mdb_cf_cleanup;
+ 			if ( !mdb->mi_index_task ) {
+ 				/* Start the task as soon as we finish here. Set a long
+-- 
+2.19.1
+
