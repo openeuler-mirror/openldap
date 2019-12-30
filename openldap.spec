@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.46
-Release:        11
+Release:        12
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -460,6 +460,12 @@ exit 0
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Mon Dec 30 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.4.46-12
+- Type:bugfix
+- ID:
+- SUG:
+- DESC:modify the spec
+
 * Sat Dec 21 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.4.46-11
 - Type:cves
 - ID:CVE-2019-13565
