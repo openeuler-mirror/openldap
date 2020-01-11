@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.46
-Release:        12
+Release:        13
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -68,6 +68,7 @@ Patch6035:      CVE-2019-13057-2.patch
 Patch6036:      CVE-2019-13057-3.patch
 Patch6037:      CVE-2019-13057-4.patch
 Patch6038:      CVE-2019-13565.patch
+Patch6039:      CVE-2017-17740.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -460,6 +461,12 @@ exit 0
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Sat Jan 11 2020 zhangrui<zhangrui182@huawei.com> - 2.4.46-13
+- Type:cves
+- ID:CVE-2017-17740
+- SUG:NA
+- DESC: fix CVE-2017-17740
+
 * Mon Dec 30 2019 openEuler Buildteam <buildteam@openeuler.org> - 2.4.46-12
 - Type:bugfix
 - ID:
