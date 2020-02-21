@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.46
-Release:        13
+Release:        14
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -68,7 +68,7 @@ Patch6035:      CVE-2019-13057-2.patch
 Patch6036:      CVE-2019-13057-3.patch
 Patch6037:      CVE-2019-13057-4.patch
 Patch6038:      CVE-2019-13565.patch
-Patch6039:      CVE-2017-17740.patch
+Patch6039:      0001-openldap-bugfix-make-test.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -182,6 +182,7 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch6036 -p1
 %patch6037 -p1
 %patch6038 -p1
+%patch6039 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -407,6 +408,10 @@ fi
 
 exit 0
 
+%check
+pushd openldap-%{version}
+make check
+popd
 
 %files
 %defattr(-,root,root)
@@ -461,6 +466,12 @@ exit 0
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Fri Feb 21 2020 songnannan<songnannan2@huawei.com> - 2.4.46-14
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:bugfix about make check
+
 * Sat Jan 11 2020 zhangrui<zhangrui182@huawei.com> - 2.4.46-13
 - Type:cves
 - ID:CVE-2017-17740
