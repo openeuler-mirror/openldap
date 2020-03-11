@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.46
-Release:        14
+Release:        15
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -276,6 +276,8 @@ perl -pi -e "s|%{buildroot}||g" %{buildroot}%{_sysconfdir}/openldap/*.conf
 perl -pi -e "s|%{buildroot}||g" %{buildroot}%{_mandir}/*/*.*
 rm -f %{buildroot}%{_sysconfdir}/openldap/*.default
 rm -f %{buildroot}%{_sysconfdir}/openldap/schema/*.default
+rm -f %{buildroot}%{_sysconfdir}/openldap/slapd.conf
+rm -f %{buildroot}%{_sysconfdir}/openldap/slapd.ldif
 
 install -d %{buildroot}%{_unitdir}
 install -m 0644 %SOURCE1 %{buildroot}%{_unitdir}/slapd.service
@@ -421,9 +423,6 @@ popd
 %config(noreplace) %{_sysconfdir}/openldap/ldap.conf
 %dir %{_libexecdir}/openldap/
 %{_libdir}/lib*.so.*
-%exclude %{_sysconfdir}/openldap/ldap.conf
-%exclude %{_sysconfdir}/openldap/slapd.conf
-%exclude %{_sysconfdir}/openldap/slapd.ldif
 
 %files servers
 %defattr(-,root,root)
@@ -466,6 +465,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Wed Mar 11 2020 songnannan <songnannan2@huawei.com> - 2.4.46-15
+- bugfix about conf file
+
 * Fri Feb 21 2020 songnannan<songnannan2@huawei.com> - 2.4.46-14
 - Type:bugfix
 - ID:NA
