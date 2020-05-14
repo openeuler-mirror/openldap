@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.46
-Release:        15
+Release:        16
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -69,6 +69,7 @@ Patch6036:      CVE-2019-13057-3.patch
 Patch6037:      CVE-2019-13057-4.patch
 Patch6038:      CVE-2019-13565.patch
 Patch6039:      0001-openldap-bugfix-make-test.patch
+Patch6040:      CVE-2020-12243.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -183,6 +184,7 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch6037 -p1
 %patch6038 -p1
 %patch6039 -p1
+%patch6040 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -465,6 +467,12 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Thu May 14 2020 lijingyu <lijingyu15@huawei.com> - 2.4.46-16
+- Type:cves
+- ID:CVE-2020-12243
+- SUG:NA
+- DESC: fix CVE-2020-12243
+
 * Wed Mar 11 2020 songnannan <songnannan2@huawei.com> - 2.4.46-15
 - bugfix about conf file
 
