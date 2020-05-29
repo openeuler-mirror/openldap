@@ -1,8 +1,8 @@
 %global systemctl_bin /usr/bin/systemctl
 
 Name:           openldap
-Version:        2.4.46
-Release:        16
+Version:        2.4.49
+Release:        2
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -24,10 +24,8 @@ Patch17:        openldap-allop-overlay.patch
 
 # http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=327585
 Patch19:        openldap-switch-to-lt_dlopenadvise-to-get-RTLD_GLOBAL-set.patch
-Patch20:        openldap-ldapi-sasl.patch
-Patch21:        openldap-openssl-allow-ssl3.patch
 Patch90:        check-password-makefile.patch
-Patch91:        check-password.patch
+Patch91: 	check-password.patch
 Patch6000:      bugfix-openldap-autoconf-pkgconfig-nss.patch
 Patch6001:      bugfix-openldap-nss-ciphers-use-nss-defaults.patch
 Patch6002:      bugfix-openldap-nss-ignore-certdb-type-prefix.patch
@@ -41,37 +39,11 @@ Patch6009:      bugfix-openldap-support-tlsv1-and-later.patch
 Patch6010:      bugfix-openldap-temporary-ssl-thr-init-race.patch
 Patch6011:      Fix-calls-to-SLAP_DEVPOLL_SOCK_LX-for-multi-listener.patch
 Patch6012:      Fixup-for-binary-config-attrs.patch
-Patch6013:      ITS-8864-Fix-ber_realloc-after-a-partial-ber_flush.patch
+Patch6013:	backport-ITS9160-OOM-Handing.patch
+Patch6014:	backport-fix-implicit-function-declaration.patch
+Patch6040:	CVE-2020-12243.patch
 
-Patch6014:      ITS-8840-Fix-domainScope-control-to-ensure-the-contr.patch
-Patch6015:      ITS-8843-check-for-NULL-modlist.patch
-Patch6016:      Fix-quoting-example.patch
-Patch6017:      ITS-8667-Do-not-finish-glue-initialisation-in-tool-m.patch
-Patch6018:      ITS-8842-Do-some-printability-checks-on-the-dc-RDN.patch
-Patch6019:      ITS-8909-fix-authz-policy-all-condition.patch
-Patch6020:      ITS-8909-additional-tweak.patch
-Patch6021:      Fix-index-delete.patch
-Patch6022:      ITS-8756-remove-loose-pg-from-dirty-list-in-freelist.patch
-Patch6023:      ITS-8918-fix-typo.patch
-Patch6024:      ITS-8923-fix-dyngroup-NO_SUCH_OBJECT-error-handling.patch
-Patch6025:      ITS-8878-Include-the-first-character-in-the-transfor.patch
-Patch6026:      ITS-8752-maybe-related.patch
-Patch6027:      ITS-8932-check-rdnNormalize-success.patch
-Patch6028:      ITS-8727-plug-ber-leaks.patch
-Patch6029:      ITS-8948-Fix-BDB-lib-to-only-be-linked-with-static-b.patch
-Patch6030:      ITS-8663-Fix-memberof-SLAP_CONFIG_EMIT.patch
-Patch6031:      ITS-8472-only-do-index-cleanup-if-DB-is-running.patch
-Patch6032:      ITS-8957-Fix-ASYNC-TLS.patch
-Patch6033:      ITS-8980-fix-async-connections-with-non-blocking-TLS.patch
-Patch6034:      CVE-2019-13057-1.patch
-Patch6035:      CVE-2019-13057-2.patch
-Patch6036:      CVE-2019-13057-3.patch
-Patch6037:      CVE-2019-13057-4.patch
-Patch6038:      CVE-2019-13565.patch
-Patch6039:      0001-openldap-bugfix-make-test.patch
-Patch6040:      CVE-2020-12243.patch
-
-BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
+BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel chrpath
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
 
 %description
@@ -141,8 +113,6 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch5 -p1
 %patch17 -p1
 %patch19 -p1
-%patch20 -p1
-%patch21 -p1
 
 %patch6000 -p1
 %patch6001 -p1
@@ -159,31 +129,6 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch6012 -p1
 %patch6013 -p1
 %patch6014 -p1
-%patch6015 -p1
-%patch6016 -p1
-%patch6017 -p1
-%patch6018 -p1
-%patch6019 -p1
-%patch6020 -p1
-%patch6021 -p1
-%patch6022 -p1
-%patch6023 -p1
-%patch6024 -p1
-%patch6025 -p1
-%patch6026 -p1
-%patch6027 -p1
-%patch6028 -p1
-%patch6029 -p1
-%patch6030 -p1
-%patch6031 -p1
-%patch6032 -p1
-%patch6033 -p1
-%patch6034 -p1
-%patch6035 -p1
-%patch6036 -p1
-%patch6037 -p1
-%patch6038 -p1
-%patch6039 -p1
 %patch6040 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
@@ -322,6 +267,14 @@ rmdir %{buildroot}%{_localstatedir}/openldap-data
 
 %ldconfig_scriptlets
 
+mkdir -p %{buildroot}/etc/ld.so.conf.d
+echo "/usr/lib64/perl5/CORE" > %{buildroot}/etc/ld.so.conf.d/%{name}-%{_arch}.conf
+
+%check
+pushd openldap-%{version}
+make check
+popd
+
 %pre servers
 
 getent group ldap &>/dev/null || groupadd -r -g 55 ldap
@@ -340,10 +293,9 @@ fi
 
 exit 0
 
-
 %post servers
 %systemd_post slapd.service
-
+/sbin/ldconfig
 if [[ ! -f %{_sysconfdir}/openldap/slapd.d/cn=config.ldif && \
       ! -f %{_sysconfdir}/openldap/slapd.conf
    ]]; then
@@ -380,7 +332,7 @@ exit 0
 
 %postun servers
 %systemd_postun_with_restart slapd.service
-
+/sbin/ldconfig
 %triggerin servers -- libdb
 
 if [ $2 -eq 2 ]; then
@@ -412,11 +364,6 @@ fi
 
 exit 0
 
-%check
-pushd openldap-%{version}
-make check
-popd
-
 %files
 %defattr(-,root,root)
 %license openldap-%{version}/COPYRIGHT
@@ -442,6 +389,7 @@ popd
 %{_libexecdir}/openldap/upgrade-db.sh
 %{_sbindir}/sl*
 %ghost %config(noreplace,missingok) %attr(0640,ldap,ldap) %{_sysconfdir}/openldap/slapd.conf
+%config(noreplace) /etc/ld.so.conf.d/*
 
 %files clients
 %defattr(-,root,root)
@@ -467,11 +415,17 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
-* Thu May 14 2020 lijingyu <lijingyu15@huawei.com> - 2.4.46-16
-- Type:cves
-- ID:CVE-2020-12243
+* Wed Apr 22 2020 songnannan <songnannan2@huawei.com> - 2.4.49-2
+- Type:bugfix
+- ID:NA
 - SUG:NA
-- DESC: fix CVE-2020-12243
+- DESC:bugfix from the community of openldap
+
+* Fri Apr 17 2020 songnannan <songnannan2@huawei.com> - 2.4.49-1
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:update to 2.4.49
 
 * Wed Mar 11 2020 songnannan <songnannan2@huawei.com> - 2.4.46-15
 - bugfix about conf file
