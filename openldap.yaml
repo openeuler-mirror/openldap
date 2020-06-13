@@ -1,0 +1,4 @@
+version_control: git
+src_repo: https://git.openldap.org/openldap/openldap.git
+tag_prefix: OPENLDAP_REL_ENG_
+seperator: _
