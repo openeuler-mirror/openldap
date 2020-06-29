@@ -1,0 +1,30 @@
+From 57b7003a6473206e2526dcc91c7ddb357c7e66de Mon Sep 17 00:00:00 2001
+From: Sergei Trofimovich <slyfox@gentoo.org>
+Date: Mon, 19 Jun 2017 21:48:05 +0100
+Subject: [PATCH] thr_posix.c: fix implicit function declaration for
+ 'pthread_setconcurrency'
+
+thr_posix.c: In function 'ldap_pvt_thread_set_concurrency':
+thr_posix.c:96:9: error: implicit declaration of function 'pthread_setconcurrency'
+  return pthread_setconcurrency( n );
+         ^~~~~~~~~~~~~~~~~~~~~~
+         pthread_setcanceltype
+
+Signed-off-by: Sergei Trofimovich <slyfox@gentoo.org>
+---
+ libraries/libldap_r/thr_posix.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libraries/libldap_r/thr_posix.c b/libraries/libldap_r/thr_posix.c
+index 35bde07327..e0368cc1eb 100644
+--- a/libraries/libldap_r/thr_posix.c
++++ b/libraries/libldap_r/thr_posix.c
+@@ -14,6 +14,8 @@
+  * <http://www.OpenLDAP.org/license.html>.
+  */
+ 
++#define _XOPEN_SOURCE 500	 /* For pthread_setconcurrency() on glibc */
++
+ #include "portable.h"
+ 
+ #if defined( HAVE_PTHREADS )
