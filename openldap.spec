@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.49
-Release:        2
+Release:        3
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -260,7 +260,7 @@ mv %{buildroot}%{_sysconfdir}/openldap/schema/README README.schema
 mv %{buildroot}%{_sysconfdir}/openldap/DB_CONFIG.example %{buildroot}%{_datadir}/openldap-servers/DB_CONFIG.example
 chmod 0644 %{buildroot}%{_datadir}/openldap-servers/DB_CONFIG.example
 
-%delete_la
+rm -f %{buildroot}%{_libdir}/*.la
 
 rm -f %{buildroot}%{_localstatedir}/openldap-data/DB_CONFIG.example
 rmdir %{buildroot}%{_localstatedir}/openldap-data
@@ -415,6 +415,12 @@ exit 0
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Thu Jul 23 2020 zhouyihang<zhouyihang3@huawei.com> - 2.4.49-3
+- Type:bugfix
+- ID:NA
+- SUG:NA
+- DESC:keep *.la under %{_libdir}/openldap/
+
 * Wed Apr 22 2020 songnannan <songnannan2@huawei.com> - 2.4.49-2
 - Type:bugfix
 - ID:NA
