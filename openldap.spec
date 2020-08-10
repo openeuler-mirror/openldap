@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.49
-Release:        3
+Release:        4
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -11,37 +11,37 @@ Source1:        slapd.service
 Source2:        slapd.tmpfiles
 Source3:        slapd.ldif
 Source4:        ldap.conf
-Source10:       ltb-project-openldap-ppolicy-check-password-1.1.tar.gz
-Source50:       libexec-functions
-Source52:       libexec-check-config.sh
-Source53:       libexec-upgrade-db.sh
+Source10:        ltb-project-openldap-ppolicy-check-password-1.1.tar.gz
+Source50:        libexec-functions
+Source52:        libexec-check-config.sh
+Source53:        libexec-upgrade-db.sh
 
 Patch0:         openldap-manpages.patch
-Patch2:         openldap-reentrant-gethostby.patch
-Patch3:         openldap-smbk5pwd-overlay.patch
-Patch5:         openldap-ai-addrconfig.patch
-Patch17:        openldap-allop-overlay.patch
-
+Patch1:         openldap-reentrant-gethostby.patch
+Patch2:         openldap-smbk5pwd-overlay.patch
+Patch3:         openldap-ai-addrconfig.patch
+Patch4:         openldap-allop-overlay.patch
 # http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=327585
-Patch19:        openldap-switch-to-lt_dlopenadvise-to-get-RTLD_GLOBAL-set.patch
-Patch90:        check-password-makefile.patch
-Patch91: 	check-password.patch
-Patch6000:      bugfix-openldap-autoconf-pkgconfig-nss.patch
-Patch6001:      bugfix-openldap-nss-ciphers-use-nss-defaults.patch
-Patch6002:      bugfix-openldap-nss-ignore-certdb-type-prefix.patch
-Patch6003:      bugfix-openldap-nss-pk11-freeslot.patch
-Patch6004:      bugfix-openldap-nss-protocol-version-new-api.patch
-Patch6005:      bugfix-openldap-nss-unregister-on-unload.patch
-Patch6006:      bugfix-openldap-nss-update-list-of-ciphers.patch
-Patch6007:      bugfix-openldap-nss-ciphersuite-handle-masks-correctly.patch
-Patch6008:      bugfix-openldap-ssl-deadlock-revert.patch
-Patch6009:      bugfix-openldap-support-tlsv1-and-later.patch
-Patch6010:      bugfix-openldap-temporary-ssl-thr-init-race.patch
-Patch6011:      Fix-calls-to-SLAP_DEVPOLL_SOCK_LX-for-multi-listener.patch
-Patch6012:      Fixup-for-binary-config-attrs.patch
-Patch6013:	backport-ITS9160-OOM-Handing.patch
-Patch6014:	backport-fix-implicit-function-declaration.patch
-Patch6040:	CVE-2020-12243.patch
+Patch5:         openldap-switch-to-lt_dlopenadvise-to-get-RTLD_GLOBAL-set.patch
+Patch6:         check-password-makefile.patch
+Patch7: 	check-password.patch
+Patch8:         bugfix-openldap-autoconf-pkgconfig-nss.patch
+Patch9:         bugfix-openldap-nss-ciphers-use-nss-defaults.patch
+Patch10:        bugfix-openldap-nss-ignore-certdb-type-prefix.patch
+Patch11:        bugfix-openldap-nss-pk11-freeslot.patch
+Patch12:        bugfix-openldap-nss-protocol-version-new-api.patch
+Patch13:        bugfix-openldap-nss-unregister-on-unload.patch
+Patch14:        bugfix-openldap-nss-update-list-of-ciphers.patch
+Patch15:        bugfix-openldap-nss-ciphersuite-handle-masks-correctly.patch
+Patch16:        bugfix-openldap-ssl-deadlock-revert.patch
+Patch17:        bugfix-openldap-support-tlsv1-and-later.patch
+Patch18:        bugfix-openldap-temporary-ssl-thr-init-race.patch
+Patch19:        Fix-calls-to-SLAP_DEVPOLL_SOCK_LX-for-multi-listener.patch
+Patch20:        Fixup-for-binary-config-attrs.patch
+Patch21:	ITS9160-OOM-Handing.patch
+Patch22:	fix-implicit-function-declaration.patch
+Patch23:	CVE-2020-12243.patch
+Patch24:        CVE-2020-15719.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel chrpath
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -108,28 +108,29 @@ pushd openldap-%{version}
 AUTOMAKE=%{_bindir}/true autoreconf -fi
 
 %patch0 -p1
+%patch1 -p1
 %patch2 -p1
 %patch3 -p1
+%patch4 -p1
 %patch5 -p1
-%patch17 -p1
-%patch19 -p1
 
-%patch6000 -p1
-%patch6001 -p1
-%patch6002 -p1
-%patch6003 -p1
-%patch6004 -p1
-%patch6005 -p1
-%patch6006 -p1
-%patch6007 -p1
-%patch6008 -p1
-%patch6009 -p1
-%patch6010 -p1
-%patch6011 -p1
-%patch6012 -p1
-%patch6013 -p1
-%patch6014 -p1
-%patch6040 -p1
+%patch8 -p1
+%patch9 -p1
+%patch10 -p1
+%patch11 -p1
+%patch12 -p1
+%patch13 -p1
+%patch14 -p1
+%patch15 -p1
+%patch16 -p1
+%patch17 -p1
+%patch18 -p1
+%patch19 -p1
+%patch20 -p1
+%patch21 -p1
+%patch22 -p1
+%patch23 -p1
+%patch24 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -147,8 +148,8 @@ done
 popd
 
 pushd ltb-project-openldap-ppolicy-check-password-1.1
-%patch90 -p1
-%patch91 -p1
+%patch6 -p1
+%patch7 -p1
 popd
 
 %build
@@ -415,6 +416,12 @@ exit 0
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Wed Aug 05 2020 lunankun<lunankun@huawei.com> - 2.4.49-4
+- Type:cves
+- ID:CVE-2020-15719
+- SUG:restart
+- DESC:fix CVE-2020-15719
+
 * Thu Jul 23 2020 zhouyihang<zhouyihang3@huawei.com> - 2.4.49-3
 - Type:bugfix
 - ID:NA
