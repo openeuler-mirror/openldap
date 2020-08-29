@@ -1,8 +1,8 @@
 %global systemctl_bin /usr/bin/systemctl
 
 Name:           openldap
-Version:        2.4.49
-Release:        4
+Version:        2.4.50
+Release:        1
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -23,25 +23,26 @@ Patch3:         openldap-ai-addrconfig.patch
 Patch4:         openldap-allop-overlay.patch
 # http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=327585
 Patch5:         openldap-switch-to-lt_dlopenadvise-to-get-RTLD_GLOBAL-set.patch
-Patch6:         check-password-makefile.patch
-Patch7: 	check-password.patch
-Patch8:         bugfix-openldap-autoconf-pkgconfig-nss.patch
-Patch9:         bugfix-openldap-nss-ciphers-use-nss-defaults.patch
-Patch10:        bugfix-openldap-nss-ignore-certdb-type-prefix.patch
-Patch11:        bugfix-openldap-nss-pk11-freeslot.patch
-Patch12:        bugfix-openldap-nss-protocol-version-new-api.patch
-Patch13:        bugfix-openldap-nss-unregister-on-unload.patch
-Patch14:        bugfix-openldap-nss-update-list-of-ciphers.patch
-Patch15:        bugfix-openldap-nss-ciphersuite-handle-masks-correctly.patch
-Patch16:        bugfix-openldap-ssl-deadlock-revert.patch
-Patch17:        bugfix-openldap-support-tlsv1-and-later.patch
-Patch18:        bugfix-openldap-temporary-ssl-thr-init-race.patch
-Patch19:        Fix-calls-to-SLAP_DEVPOLL_SOCK_LX-for-multi-listener.patch
-Patch20:        Fixup-for-binary-config-attrs.patch
-Patch21:	ITS9160-OOM-Handing.patch
-Patch22:	fix-implicit-function-declaration.patch
-Patch23:	CVE-2020-12243.patch
-Patch24:        CVE-2020-15719.patch
+Patch6:         openldap-openssl-allow-ssl3.patch
+Patch7:         check-password-makefile.patch
+Patch8:         check-password.patch
+Patch9:         bugfix-openldap-autoconf-pkgconfig-nss.patch
+Patch10:        bugfix-openldap-nss-ciphers-use-nss-defaults.patch
+Patch11:        bugfix-openldap-nss-ignore-certdb-type-prefix.patch
+Patch12:        bugfix-openldap-nss-pk11-freeslot.patch
+Patch13:        bugfix-openldap-nss-protocol-version-new-api.patch
+Patch14:        bugfix-openldap-nss-unregister-on-unload.patch
+Patch15:        bugfix-openldap-nss-update-list-of-ciphers.patch
+Patch16:        bugfix-openldap-nss-ciphersuite-handle-masks-correctly.patch
+Patch17:        bugfix-openldap-ssl-deadlock-revert.patch
+Patch18:        bugfix-openldap-support-tlsv1-and-later.patch
+Patch19:        bugfix-openldap-temporary-ssl-thr-init-race.patch
+Patch20:        Fix-calls-to-SLAP_DEVPOLL_SOCK_LX-for-multi-listener.patch
+Patch21:        Fixup-for-binary-config-attrs.patch
+Patch22:        bugfix-openldap-ITS9160-OOM-Handing.patch
+Patch23:        bugfix-openldap-fix-implicit-function-declaration.patch
+Patch24:        bugfix-openldap-ITS-8650-Fix-Debug-usage-to-follow-RE24-format.patch
+Patch25:        CVE-2020-15719.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel chrpath
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -113,8 +114,8 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch3 -p1
 %patch4 -p1
 %patch5 -p1
+%patch6 -p1
 
-%patch8 -p1
 %patch9 -p1
 %patch10 -p1
 %patch11 -p1
@@ -131,6 +132,7 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch22 -p1
 %patch23 -p1
 %patch24 -p1
+%patch25 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -148,8 +150,8 @@ done
 popd
 
 pushd ltb-project-openldap-ppolicy-check-password-1.1
-%patch6 -p1
 %patch7 -p1
+%patch8 -p1
 popd
 
 %build
@@ -271,11 +273,6 @@ rmdir %{buildroot}%{_localstatedir}/openldap-data
 mkdir -p %{buildroot}/etc/ld.so.conf.d
 echo "/usr/lib64/perl5/CORE" > %{buildroot}/etc/ld.so.conf.d/%{name}-%{_arch}.conf
 
-%check
-pushd openldap-%{version}
-make check
-popd
-
 %pre servers
 
 getent group ldap &>/dev/null || groupadd -r -g 55 ldap
@@ -365,6 +362,11 @@ fi
 
 exit 0
 
+%check
+pushd openldap-%{version}
+make check
+popd
+
 %files
 %defattr(-,root,root)
 %license openldap-%{version}/COPYRIGHT
@@ -416,6 +418,12 @@ exit 0
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Tue Aug 25 2020 lunankun<lunankun@huawei.com> - 2.4.50-1
+- Type:requirement
+- ID:NA
+- SUG:NA
+- DESC:update to 2.4.50
+
 * Wed Aug 05 2020 lunankun<lunankun@huawei.com> - 2.4.49-4
 - Type:cves
 - ID:CVE-2020-15719
