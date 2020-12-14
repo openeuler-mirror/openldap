@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.50
-Release:        3
+Release:        4
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -43,6 +43,7 @@ Patch22:        bugfix-openldap-ITS9160-OOM-Handing.patch
 Patch23:        bugfix-openldap-fix-implicit-function-declaration.patch
 Patch24:        bugfix-openldap-ITS-8650-Fix-Debug-usage-to-follow-RE24-format.patch
 Patch25:        CVE-2020-15719.patch
+Patch26:	CVE-2020-25692.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -133,6 +134,7 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch23 -p1
 %patch24 -p1
 %patch25 -p1
+%patch26 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -415,6 +417,12 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Mon Dec 14 2020 openEuler Buildteam <buildteam@openeuler.org> - 2.4.50-4
+- Type:cves
+- ID:CVE-2020-25692
+- SUG:restart
+- DESC:fix CVE-2020-25692
+
 * Wed Aug 05 2020 lunankun<lunankun@huawei.com> - 2.4.50-3
 - Type:cves
 - ID:CVE-2020-15719
