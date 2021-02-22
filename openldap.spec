@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.50
-Release:        4
+Release:        5
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -44,6 +44,19 @@ Patch23:        bugfix-openldap-fix-implicit-function-declaration.patch
 Patch24:        bugfix-openldap-ITS-8650-Fix-Debug-usage-to-follow-RE24-format.patch
 Patch25:        CVE-2020-15719.patch
 Patch26:	CVE-2020-25692.patch
+Patch27:	CVE-2020-36221-1.patch
+Patch28:	CVE-2020-36221-2.patch
+Patch29:	CVE-2020-36222-1.patch
+Patch30:	CVE-2020-36222-2.patch
+Patch31:	CVE-2020-36223.patch
+Patch32:	CVE-2020-36224_36225_36226-1.patch
+Patch33:	CVE-2020-36224_36225_36226-2.patch
+Patch34:	CVE-2020-36224_36225_36226-3.patch
+Patch35:	CVE-2020-36224_36225_36226-4.patch
+Patch36:	CVE-2020-36227.patch
+Patch37:	CVE-2020-36228.patch
+Patch38:	CVE-2020-36230.patch
+Patch39:	CVE-2020-36229.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -135,6 +148,19 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch24 -p1
 %patch25 -p1
 %patch26 -p1
+%patch27 -p1
+%patch28 -p1
+%patch29 -p1
+%patch30 -p1
+%patch31 -p1
+%patch32 -p1
+%patch33 -p1
+%patch34 -p1
+%patch35 -p1
+%patch36 -p1
+%patch37 -p1
+%patch38 -p1
+%patch39 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -417,6 +443,12 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Thu Feb 18 2021 liulong <liulong20@huawei.com> - 2.4.50-5
+- Type:cves
+- ID:NA
+- SUG:restart
+- DESC:fix CVE-2020-36221 CVE-2020-36222 CVE-2020-36223 CVE-2020-36224 CVE-2020-36225 CVE-2020-36226 CVE-2020-36227 CVE-2020-36228 CVE-2020-36229 CVE-2020-36230
+
 * Mon Dec 14 2020 openEuler Buildteam <buildteam@openeuler.org> - 2.4.50-4
 - Type:cves
 - ID:CVE-2020-25692
