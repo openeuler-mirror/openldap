@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.50
-Release:        5
+Release:        6
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -57,6 +57,11 @@ Patch36:	CVE-2020-36227.patch
 Patch37:	CVE-2020-36228.patch
 Patch38:	CVE-2020-36230.patch
 Patch39:	CVE-2020-36229.patch
+Patch40:	backport-delete-back-bdb-back-hdb.patch
+Patch41:	backport-Fix-test-suite.patch
+Patch42:	backport-ITS-9010-regenerate-configure.patch
+Patch43:	backport-ITS-9010-More-BDB-HDB-cleanup.patch
+
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -85,11 +90,11 @@ customized LDAP clients.
 %package        servers
 Summary:        LDAP server
 License:        OpenLDAP
-Requires:       openldap = %{version}-%{release} libdb-utils
+Requires:       openldap = %{version}-%{release}
 Requires(pre):  shadow-utils
 %{?systemd_requires}
 BuildRequires:  systemd
-BuildRequires:  libdb-devel cracklib-devel
+BuildRequires:  cracklib-devel
 Provides:       ldif2ldbm
 
 %description servers
@@ -161,6 +166,10 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch37 -p1
 %patch38 -p1
 %patch39 -p1
+%patch40 -p1
+%patch41 -p1
+%patch42 -p1
+%patch43 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -193,7 +202,7 @@ pushd openldap-%{version}
         --enable-cleartext --enable-crypt --enable-lmpasswd \
         --enable-spasswd --enable-modules --enable-rewrite \
         --enable-rlookups --enable-slapi --disable-slp \
-        --enable-backends=mod --enable-bdb=yes --enable-hdb=yes \
+        --enable-backends=mod \
         --enable-mdb=yes --enable-monitor=yes --disable-ndb \
         --disable-sql --enable-overlays=mod --disable-static \
         --with-cyrus-sasl --without-fetch --with-threads \
@@ -288,13 +297,10 @@ install -m 0755 -d %{buildroot}%{_datadir}/openldap-servers
 install -m 0644 %SOURCE3 %{buildroot}%{_datadir}/openldap-servers/slapd.ldif
 install -m 0700 -d %{buildroot}%{_sysconfdir}/openldap/slapd.d
 mv %{buildroot}%{_sysconfdir}/openldap/schema/README README.schema
-mv %{buildroot}%{_sysconfdir}/openldap/DB_CONFIG.example %{buildroot}%{_datadir}/openldap-servers/DB_CONFIG.example
-chmod 0644 %{buildroot}%{_datadir}/openldap-servers/DB_CONFIG.example
 
 rm -f %{buildroot}%{_libdir}/*.la
 
 rm -f %{buildroot}%{_localstatedir}/openldap-data/DB_CONFIG.example
-rmdir %{buildroot}%{_localstatedir}/openldap-data
 
 %ldconfig_scriptlets
 
@@ -443,6 +449,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Thu Feb 25 2021 orange-snn <songnannan2@huawei.com> - 2.4.50-6
+- remove libdb-devel in buildrequires and requires.
+
 * Thu Feb 18 2021 liulong <liulong20@huawei.com> - 2.4.50-5
 - Type:cves
 - ID:NA
