@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.50
-Release:        4
+Release:        5
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -61,6 +61,7 @@ Patch40:	backport-delete-back-bdb-back-hdb.patch
 Patch41:	backport-Fix-test-suite.patch
 Patch42:	backport-ITS-9010-regenerate-configure.patch
 Patch43:	backport-ITS-9010-More-BDB-HDB-cleanup.patch
+Patch44:	CVE-2021-27212.patch
 
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel chrpath
@@ -170,6 +171,7 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch41 -p1
 %patch42 -p1
 %patch43 -p1
+%patch44 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -452,6 +454,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Sat Feb 27 2021 orange-snn <songnannan2@huawei.com> - 2.4.50-5
+- fix CVE-2021-27212
+
 * Thu Feb 25 2021 orange-snn <songnannan2@huawei.com> - 2.4.50-4
 - remove libdb-devel in buildrequires and requires
 
