@@ -1,0 +1,71 @@
+From 70f87370f99e78ac3874501bfe5124dbb86185a8 Mon Sep 17 00:00:00 2001
+From: zhangqiumiao <zhangqiumiao1@huawei.com>
+Date: Fri, 25 Sep 2020 21:56:43 +0800
+Subject: [PATCH] backport Fix test suite
+
+---
+ tests/data/monitor2.out        |  3 ---
+ tests/scripts/test052-memberof |  2 +-
+ tests/scripts/test056-monitor  | 11 ++---------
+ 3 files changed, 3 insertions(+), 13 deletions(-)
+
+diff --git a/tests/data/monitor2.out b/tests/data/monitor2.out
+index 26e9ce9..20209d1 100644
+--- a/tests/data/monitor2.out
++++ b/tests/data/monitor2.out
+@@ -10,9 +10,6 @@ structuralObjectClass: monitoredObject
+ monitorIsShadow: FALSE
+ namingContexts: o=OpenLDAP Project,l=Internet
+ readOnly: FALSE
+-olmBDBEntryCache: 0
+-olmBDBDNCache: 0
+-olmBDBIDLCache: 0
+ entryDN: cn=Database 1,cn=Databases,cn=Monitor
+ 
+ dn: cn=Database 2,cn=Databases,cn=Monitor
+diff --git a/tests/scripts/test052-memberof b/tests/scripts/test052-memberof
+index a73a929..1dba946 100755
+--- a/tests/scripts/test052-memberof
++++ b/tests/scripts/test052-memberof
+@@ -72,7 +72,7 @@ EOF
+ 	fi
+ fi
+ 
+-indexInclude="" mainInclude="" " nullExclude=""
++indexInclude="" mainInclude="" nullExclude=""
+ test $INDEXDB = indexdb	|| indexInclude="# "
+ test $MAINDB  = maindb	|| mainInclude="# "
+ case $BACKEND in
+diff --git a/tests/scripts/test056-monitor b/tests/scripts/test056-monitor
+index 7a87eaa..0e1ba20 100755
+--- a/tests/scripts/test056-monitor
++++ b/tests/scripts/test056-monitor
+@@ -85,7 +85,7 @@ echo "Using ldapsearch to read database monitor entries..."
+ $LDAPSEARCH -S "" -b "$DATABASESMONITORDN" -h $LOCALHOST -p $PORT1 \
+ 	'objectclass=*' \
+ 	structuralObjectClass entryDN namingContexts readOnly \
+-	monitorIsShadow monitorContext
++	monitorIsShadow monitorContext \
+ 	> $SEARCHOUT 2>&1
+ RC=$?
+ 
+@@ -98,15 +98,8 @@ fi
+ echo "Filtering ldapsearch results..."
+ $LDIFFILTER -b monitor < $SEARCHOUT > $SEARCHFLT
+ 
+-TMPMONITOROUT2=$MONITOROUT2
+-case $BACKEND in
+-*)
+-	TMPMONITOROUT2=$TESTDIR/monitor2.out
+-	;;
+-esac
+-
+ echo "Comparing filter output..."
+-$CMP $SEARCHFLT $TMPMONITOROUT2 > $CMPOUT
++$CMP $SEARCHFLT $MONITOROUT2 > $CMPOUT
+ 
+ if test $? != 0 ; then
+         echo "comparison failed - database monitor output is not correct"
+-- 
+2.19.1
+
