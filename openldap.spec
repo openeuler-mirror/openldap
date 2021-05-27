@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.4.50
-Release:        4
+Release:        5
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -58,6 +58,7 @@ Patch37:	CVE-2020-36228.patch
 Patch38:	CVE-2020-36230.patch
 Patch39:	CVE-2020-36229.patch
 Patch40:	CVE-2021-27212.patch
+Patch41:        CVE-2020-25709.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel chrpath
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -163,6 +164,7 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch38 -p1
 %patch39 -p1
 %patch40 -p1
+%patch41 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -448,6 +450,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Thu May 27 2021 gaihuiying <gaihuiying1@huawei.com> - 2.4.50-5
+- fix CVE-2020-25709
+
 * Sat Feb 27 2021 orange-snn <songnannan2@huawei.com> - 2.4.50-4
 - fix CVE-2021-27212
 
