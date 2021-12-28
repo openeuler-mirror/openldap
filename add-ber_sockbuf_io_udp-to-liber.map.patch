@@ -1,0 +1,23 @@
+From b39ae98eb55281422a391bade3bf648ce6180621 Mon Sep 17 00:00:00 2001
+From: eaglegai <gaihuiying1@huawei.com>
+Date: Fri, 17 Dec 2021 17:39:03 +0800
+Subject: [PATCH] add ber_sockbuf_io_udp to liber.map
+
+---
+ libraries/liblber/lber.map | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/libraries/liblber/lber.map b/libraries/liblber/lber.map
+index 9a4094b..083cd1f 100644
+--- a/libraries/liblber/lber.map
++++ b/libraries/liblber/lber.map
+@@ -121,6 +121,7 @@ OPENLDAP_2.200
+     ber_sockbuf_io_fd;
+     ber_sockbuf_io_readahead;
+     ber_sockbuf_io_tcp;
++    ber_sockbuf_io_udp;
+     ber_sockbuf_remove_io;
+     ber_sos_dump;
+     ber_start;
+--
+2.30.0
