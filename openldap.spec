@@ -1,8 +1,8 @@
 %global systemctl_bin /usr/bin/systemctl
 
 Name:           openldap
-Version:        2.4.50
-Release:        8
+Version:        2.6.0
+Release:        1
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -16,58 +16,19 @@ Source50:        libexec-functions
 Source52:        libexec-check-config.sh
 Source53:        libexec-upgrade-db.sh
 
-Patch0:         openldap-manpages.patch
-Patch1:         openldap-reentrant-gethostby.patch
-Patch2:         openldap-smbk5pwd-overlay.patch
-Patch3:         openldap-ai-addrconfig.patch
-Patch4:         openldap-allop-overlay.patch
-# http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=327585
-Patch5:         openldap-switch-to-lt_dlopenadvise-to-get-RTLD_GLOBAL-set.patch
-Patch6:         openldap-openssl-allow-ssl3.patch
-Patch7:         check-password-makefile.patch
-Patch8:         check-password.patch
-Patch9:         bugfix-openldap-autoconf-pkgconfig-nss.patch
-Patch10:        bugfix-openldap-nss-ciphers-use-nss-defaults.patch
-Patch11:        bugfix-openldap-nss-ignore-certdb-type-prefix.patch
-Patch12:        bugfix-openldap-nss-pk11-freeslot.patch
-Patch13:        bugfix-openldap-nss-protocol-version-new-api.patch
-Patch14:        bugfix-openldap-nss-unregister-on-unload.patch
-Patch15:        bugfix-openldap-nss-update-list-of-ciphers.patch
-Patch16:        bugfix-openldap-nss-ciphersuite-handle-masks-correctly.patch
-Patch17:        bugfix-openldap-ssl-deadlock-revert.patch
-Patch18:        bugfix-openldap-support-tlsv1-and-later.patch
-Patch19:        bugfix-openldap-temporary-ssl-thr-init-race.patch
-Patch20:        Fix-calls-to-SLAP_DEVPOLL_SOCK_LX-for-multi-listener.patch
-Patch21:        Fixup-for-binary-config-attrs.patch
-Patch22:        bugfix-openldap-ITS9160-OOM-Handing.patch
-Patch23:        bugfix-openldap-fix-implicit-function-declaration.patch
-Patch24:        bugfix-openldap-ITS-8650-Fix-Debug-usage-to-follow-RE24-format.patch
-Patch25:        CVE-2020-15719.patch
-Patch26:	CVE-2020-25692.patch
-Patch27:	CVE-2020-36221-1.patch
-Patch28:	CVE-2020-36221-2.patch
-Patch29:	CVE-2020-36222-1.patch
-Patch30:	CVE-2020-36222-2.patch
-Patch31:	CVE-2020-36223.patch
-Patch32:	CVE-2020-36224_36225_36226-1.patch
-Patch33:	CVE-2020-36224_36225_36226-2.patch
-Patch34:	CVE-2020-36224_36225_36226-3.patch
-Patch35:	CVE-2020-36224_36225_36226-4.patch
-Patch36:	CVE-2020-36227.patch
-Patch37:	CVE-2020-36228.patch
-Patch38:	CVE-2020-36230.patch
-Patch39:	CVE-2020-36229.patch
-Patch40:	backport-delete-back-bdb-back-hdb.patch
-Patch41:	backport-Fix-test-suite.patch
-Patch42:	backport-ITS-9010-regenerate-configure.patch
-Patch43:	backport-ITS-9010-More-BDB-HDB-cleanup.patch
-Patch44:	CVE-2021-27212.patch
-Patch45:        CVE-2020-25709.patch
-Patch46:        CVE-2020-25710.patch
+Patch0:         backport-openldap-manpages.patch
+Patch1:         backport-openldap-reentrant-gethostby.patch
+Patch2:         backport-openldap-smbk5pwd-overlay.patch
+Patch3:         backport-openldap-ai-addrconfig.patch
+Patch4:         backport-openldap-allop-overlay.patch
+Patch5:         backport-openldap-switch-to-lt_dlopenadvise-to-get-RTLD_GLOBAL-set.patch
+Patch7:         backport-check-password-makefile.patch
+Patch8:         backport-check-password.patch
+Patch9:         add-ber_sockbuf_io_udp-to-liber.map.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
-
+BuildRequires:  openldap
 %description
 OpenLDAP is an open source suite of LDAP (Lightweight Directory Access
 Protocol) applications and development tools. LDAP is a set of
@@ -135,46 +96,8 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch3 -p1
 %patch4 -p1
 %patch5 -p1
-%patch6 -p1
 
 %patch9 -p1
-%patch10 -p1
-%patch11 -p1
-%patch12 -p1
-%patch13 -p1
-%patch14 -p1
-%patch15 -p1
-%patch16 -p1
-%patch17 -p1
-%patch18 -p1
-%patch19 -p1
-%patch20 -p1
-%patch21 -p1
-%patch22 -p1
-%patch23 -p1
-%patch24 -p1
-%patch25 -p1
-%patch26 -p1
-%patch27 -p1
-%patch28 -p1
-%patch29 -p1
-%patch30 -p1
-%patch31 -p1
-%patch32 -p1
-%patch33 -p1
-%patch34 -p1
-%patch35 -p1
-%patch36 -p1
-%patch37 -p1
-%patch38 -p1
-%patch39 -p1
-%patch40 -p1
-%patch41 -p1
-%patch42 -p1
-%patch43 -p1
-%patch44 -p1
-%patch45 -p1
-%patch46 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -208,7 +131,7 @@ pushd openldap-%{version}
         --enable-spasswd --enable-modules --enable-rewrite \
         --enable-rlookups --enable-slapi --disable-slp \
         --enable-backends=mod \
-        --enable-mdb=yes --enable-monitor=yes --disable-ndb \
+        --enable-mdb=yes --enable-monitor=yes --disable-wt \
         --disable-sql --enable-overlays=mod --disable-static \
         --with-cyrus-sasl --without-fetch --with-threads \
         --with-pic --with-gnu-ld --libexecdir=%{_libdir}
@@ -290,11 +213,11 @@ v=%{version}
 version=$(echo ${v%.[0-9]*})
 for lib in liblber libldap libldap_r libslapi; do
         rm -f ${lib}.so
-        ln -s ${lib}-${version}.so.2 ${lib}.so
+        ln -s ${lib}.so.2 ${lib}.so
 done
 popd
 
-chmod 0755 %{buildroot}%{_libdir}/lib*.so*
+chmod 0755 %{buildroot}%{_libdir}/lib*.so.*
 chmod 0644 %{buildroot}%{_libdir}/lib*.*a
 
 install -d %{buildroot}%{_datadir}
@@ -306,6 +229,11 @@ mv %{buildroot}%{_sysconfdir}/openldap/schema/README README.schema
 rm -f %{buildroot}%{_libdir}/*.la
 
 rm -f %{buildroot}%{_localstatedir}/openldap-data/DB_CONFIG.example
+ln -fs libldap.so "%{buildroot}%{_libdir}/libldap_r.so"
+
+cp -d %{_libdir}/liblber-2.4* %{buildroot}%{_libdir}/
+cp -d %{_libdir}/libldap-2.4* %{buildroot}%{_libdir}/
+cp -d %{_libdir}/libldap_r-2.4* %{buildroot}%{_libdir}/
 
 %ldconfig_scriptlets
 
@@ -438,6 +366,7 @@ popd
 %defattr(-,root,root)
 %{_libdir}/lib*.so
 %{_includedir}/*
+%{_libdir}/pkgconfig/*.pc
 
 %files help
 %defattr(-,root,root)
@@ -454,6 +383,12 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Tue Dec 21 2021 gaihuiying <gaihuiying1@huawei.com> - 2.6.0-1
+- Type:requirement
+- ID:NA
+- SUG:restart
+- DESC:update openldap to 2.6.0
+
 * Fri Jul 09 2021 gaihuiying <gaihuiying1@huawei.com> - 2.4.50-8
 - fix CVE-2020-25709 CVE-2020-25710
 
