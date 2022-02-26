@@ -1,0 +1,11 @@
+--- a/tests/scripts/test033-glue-syncrepl
++++ b/tests/scripts/test033-glue-syncrepl
+@@ -170,7 +170,7 @@
+ fi
+ 
+ # This usually propagates immediately
+-sleep $SLEEP1
++sleep 30
+ 
+ $LDAPSEARCH -H $URI2 -b "$BABSDN" > $TESTOUT 2>&1
+ RC=$?
