@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.6.0
-Release:        1
+Release:        2
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -25,6 +25,10 @@ Patch5:         backport-openldap-switch-to-lt_dlopenadvise-to-get-RTLD_GLOBAL-s
 Patch7:         backport-check-password-makefile.patch
 Patch8:         backport-check-password.patch
 Patch9:         add-ber_sockbuf_io_udp-to-liber.map.patch
+%ifarch riscv64
+Patch10:	fix-password-expiration-test.patch
+Patch11:	fix-riscv-timeout.patch
+%endif
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -98,6 +102,11 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch5 -p1
 
 %patch9 -p1
+
+%ifarch riscv64
+%patch10 -p1
+%patch11 -p1
+%endif
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -383,6 +392,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Sat Feb 26 2022 YukariChiba <i@0x7f.cc> - 2.6.0-2
+- Introduce MR#282 to fix test022-ppolicy failure when building in RISC-V
+
 * Tue Dec 21 2021 gaihuiying <gaihuiying1@huawei.com> - 2.6.0-1
 - Type:requirement
 - ID:NA
