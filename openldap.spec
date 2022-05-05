@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.6.0
-Release:        2
+Release:        3
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -27,7 +27,7 @@ Patch8:         backport-check-password.patch
 Patch9:         add-ber_sockbuf_io_udp-to-liber.map.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
-BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
+BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed libnsl2-devel
 
 %description
 OpenLDAP is an open source suite of LDAP (Lightweight Directory Access
@@ -231,6 +231,12 @@ rm -f %{buildroot}%{_libdir}/*.la
 rm -f %{buildroot}%{_localstatedir}/openldap-data/DB_CONFIG.example
 ln -fs libldap.so "%{buildroot}%{_libdir}/libldap_r.so"
 
+%ifarch loongarch64
+cp -d %{_libdir}/liblber-2.4* %{buildroot}%{_libdir}/
+cp -d %{_libdir}/libldap-2.4* %{buildroot}%{_libdir}/
+cp -d %{_libdir}/libldap_r-2.4* %{buildroot}%{_libdir}/
+%endif
+
 %ldconfig_scriptlets
 
 %pre servers
@@ -379,6 +385,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Fri Apr 29 2022 wulei <wulei80@h-partners.com> - 2.6.0-3
+- Fix cannot find -lnsl, and add the dynamic library to solve unresolvable
+
 * Tue Mar 22 2022 gaihuiying <eaglegai@163.com> - 2.6.0-2
 - Type:bugfix
 - ID:NA
