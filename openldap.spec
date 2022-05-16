@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.6.0
-Release:        2
+Release:        3
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -25,6 +25,7 @@ Patch5:         backport-openldap-switch-to-lt_dlopenadvise-to-get-RTLD_GLOBAL-s
 Patch7:         backport-check-password-makefile.patch
 Patch8:         backport-check-password.patch
 Patch9:         add-ber_sockbuf_io_udp-to-liber.map.patch
+Patch10:	backport-fix-cve-2022-29155.patch
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -98,6 +99,7 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 %patch5 -p1
 
 %patch9 -p1
+%patch10 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -379,6 +381,12 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Mon May 16 2022 zhujunhao <zhujunhao11@huawei.com> - 2.6.0-3
+- Type:bugfix
+- ID:NA
+- SUG:restart
+- DESC:fix cve-2022-29155
+
 * Tue Mar 22 2022 gaihuiying <eaglegai@163.com> - 2.6.0-2
 - Type:bugfix
 - ID:NA
