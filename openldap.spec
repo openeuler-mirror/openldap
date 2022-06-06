@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.6.0
-Release:        3
+Release:        4
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -231,12 +231,6 @@ rm -f %{buildroot}%{_libdir}/*.la
 rm -f %{buildroot}%{_localstatedir}/openldap-data/DB_CONFIG.example
 ln -fs libldap.so "%{buildroot}%{_libdir}/libldap_r.so"
 
-%ifarch loongarch64
-cp -d %{_libdir}/liblber-2.4* %{buildroot}%{_libdir}/
-cp -d %{_libdir}/libldap-2.4* %{buildroot}%{_libdir}/
-cp -d %{_libdir}/libldap_r-2.4* %{buildroot}%{_libdir}/
-%endif
-
 %ldconfig_scriptlets
 
 %pre servers
@@ -385,6 +379,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Mon Jun 6 2022 liyanan <liyanan32@h-partners.com> - 2.6.0-4
+- Delete useless so file
+
 * Fri Apr 29 2022 wulei <wulei80@h-partners.com> - 2.6.0-3
 - Fix cannot find -lnsl, and add the dynamic library to solve unresolvable
 
