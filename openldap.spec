@@ -2,9 +2,9 @@
 
 Name:           openldap
 Version:        2.6.0
-Release:        3
+Release:        4
 Summary:        LDAP support libraries
-License:        OpenLDAP
+License:        OLDAP-2.8
 URL:            https://www.openldap.org/
 Source0:        https://www.openldap.org/software/download/OpenLDAP/openldap-release/openldap-%{version}.tgz
 Source1:        slapd.service
@@ -381,6 +381,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Mon Jun 13 2022 Chenyx <chenyixiong3@huawei.com> - 2.6.0-4
+- License compliance rectification
+
 * Mon May 16 2022 zhujunhao <zhujunhao11@huawei.com> - 2.6.0-3
 - Type:bugfix
 - ID:NA
