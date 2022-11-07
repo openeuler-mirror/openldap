@@ -1,0 +1,26 @@
+From 4528bdb3f37f0e457850095ad7f003bc9853df68 Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Mon, 11 Jul 2022 17:55:37 +0100
+Subject: [PATCH] ITS#9882 bind: fix #9863 commit, use correct op/backend for
+ mod
+
+---
+ servers/slapd/bind.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/servers/slapd/bind.c b/servers/slapd/bind.c
+index 4b8eda69b..19598f11a 100644
+--- a/servers/slapd/bind.c
++++ b/servers/slapd/bind.c
+@@ -500,7 +500,7 @@ fe_op_lastbind( Operation *op )
+ 		}
+ 	}
+ 
+-	rc = op->o_bd->be_modify( &op2, &r2 );
++	rc = op2.o_bd->be_modify( &op2, &r2 );
+ 	slap_mods_free( m, 1 );
+ 
+ done:
+-- 
+2.33.0
+

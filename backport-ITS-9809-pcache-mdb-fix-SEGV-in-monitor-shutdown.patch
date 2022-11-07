@@ -1,0 +1,53 @@
+From e29ba72c5675b7465c3fca95e1c3f3360efa3a97 Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Thu, 10 Mar 2022 15:26:04 +0000
+Subject: [PATCH] ITS#9809: pcache, mdb: fix SEGV in monitor shutdown
+
+---
+ servers/slapd/back-mdb/monitor.c | 3 ++-
+ servers/slapd/overlays/pcache.c  | 5 +++--
+ 2 files changed, 5 insertions(+), 3 deletions(-)
+
+diff --git a/servers/slapd/back-mdb/monitor.c b/servers/slapd/back-mdb/monitor.c
+index 7f26074f5..fc77bc60e 100644
+--- a/servers/slapd/back-mdb/monitor.c
++++ b/servers/slapd/back-mdb/monitor.c
+@@ -578,10 +578,11 @@ mdb_monitor_db_close( BackendDB *be )
+ 		monitor_extra_t		*mbe;
+ 
+ 		if ( mi && mi->bi_extra ) {
++			struct berval dummy = BER_BVNULL;
+ 			mbe = mi->bi_extra;
+ 			mbe->unregister_entry_callback( &mdb->mi_monitor.mdm_ndn,
+ 				(monitor_callback_t *)mdb->mi_monitor.mdm_cb,
+-				NULL, 0, NULL );
++				&dummy, 0, &dummy );
+ 		}
+ 
+ 		memset( &mdb->mi_monitor, 0, sizeof( mdb->mi_monitor ) );
+diff --git a/servers/slapd/overlays/pcache.c b/servers/slapd/overlays/pcache.c
+index fa70d5d2d..fcf29c60b 100644
+--- a/servers/slapd/overlays/pcache.c
++++ b/servers/slapd/overlays/pcache.c
+@@ -5660,15 +5660,16 @@ pcache_monitor_db_close( BackendDB *be )
+ 	slap_overinst *on = (slap_overinst *)be->bd_info;
+ 	cache_manager *cm = on->on_bi.bi_private;
+ 
+-	if ( cm->monitor_cb != NULL ) {
++	if ( !BER_BVISNULL( &cm->monitor_ndn )) {
+ 		BackendInfo		*mi = backend_info( "monitor" );
+ 		monitor_extra_t		*mbe;
+ 
+ 		if ( mi && mi->bi_extra ) {
++			struct berval dummy = BER_BVNULL;
+ 			mbe = mi->bi_extra;
+ 			mbe->unregister_entry_callback( &cm->monitor_ndn,
+ 				(monitor_callback_t *)cm->monitor_cb,
+-				NULL, 0, NULL );
++				&dummy, 0, &dummy );
+ 		}
+ 	}
+ 
+-- 
+2.33.0
+
