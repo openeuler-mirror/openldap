@@ -1,0 +1,43 @@
+From 745a71b18d8da9b48509169dc2f27cc1f05912a6 Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Thu, 16 Jun 2022 21:36:24 +0100
+Subject: [PATCH] ITS#9867 syncprov: plug findbase memleak
+
+---
+ servers/slapd/overlays/syncprov.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/servers/slapd/overlays/syncprov.c b/servers/slapd/overlays/syncprov.c
+index d1d3b1c10..499988662 100644
+--- a/servers/slapd/overlays/syncprov.c
++++ b/servers/slapd/overlays/syncprov.c
+@@ -3155,6 +3155,8 @@ syncprov_op_search( Operation *op, SlapReply *rs )
+ 			 */
+ 			ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
+ 			if ( slapd_shutdown ) {
++aband:
++				ch_free( sop->s_base.bv_val );
+ 				ch_free( sop );
+ 				return SLAPD_ABANDON;
+ 			}
+@@ -3164,8 +3166,7 @@ syncprov_op_search( Operation *op, SlapReply *rs )
+ 		}
+ 		if ( op->o_abandon ) {
+ 			ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
+-			ch_free( sop );
+-			return SLAPD_ABANDON;
++			goto aband;
+ 		}
+ 		ldap_pvt_thread_mutex_init( &sop->s_mutex );
+ 		sop->s_next = si->si_ops;
+@@ -3294,6 +3295,7 @@ bailout:
+ 						sp = &(*sp)->s_next;
+ 					*sp = sop->s_next;
+ 					ldap_pvt_thread_mutex_unlock( &si->si_ops_mutex );
++					ch_free( sop->s_base.bv_val );
+ 					ch_free( sop );
+ 				}
+ 				rs->sr_ctrls = NULL;
+-- 
+2.33.0
+
