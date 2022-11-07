@@ -1,0 +1,32 @@
+From 15573c72fc3f373624bff05d8b29e57f6eb82a58 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Kuzn=C3=ADk?= <ondra@mistotebe.net>
+Date: Mon, 25 Apr 2022 16:53:25 +0100
+Subject: [PATCH] ITS#9831 Advance connections[index] correctly
+
+---
+ servers/slapd/connection.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/servers/slapd/connection.c b/servers/slapd/connection.c
+index e2f3a811e..9b363fe13 100644
+--- a/servers/slapd/connection.c
++++ b/servers/slapd/connection.c
+@@ -871,13 +871,14 @@ Connection* connection_next( Connection *c, ber_socket_t *index )
+ 
+ 	for(; *index < dtblsize; (*index)++) {
+ 		if( connections[*index].c_sb ) {
+-			c = &connections[(*index)++];
++			c = &connections[*index];
+ 			ldap_pvt_thread_mutex_lock( &c->c_mutex );
+ 			if ( c->c_conn_state == SLAP_C_INVALID ) {
+ 				ldap_pvt_thread_mutex_unlock( &c->c_mutex );
+ 				c = NULL;
+ 				continue;
+ 			}
++			(*index)++;
+ 			break;
+ 		}
+ 	}
+-- 
+2.33.0
+

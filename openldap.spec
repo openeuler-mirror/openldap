@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.6.0
-Release:        3
+Release:        4
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -26,6 +26,46 @@ Patch7:         backport-check-password-makefile.patch
 Patch8:         backport-check-password.patch
 Patch9:         add-ber_sockbuf_io_udp-to-liber.map.patch
 Patch10:	backport-fix-cve-2022-29155.patch
+
+Patch6000:      backport-ITS-7165-back-mdb-check-for-stale-readers-on-MDB_REA.patch
+Patch6001:      backport-ITS-8039-Free-resinfo-even-if-opcookie-is-the-last-o.patch
+Patch6002:      backport-ITS-8245-Do-not-try-to-release-a-NULL-entry.patch
+Patch6003:      backport-ITS-9759-Honour-requested-insert-position-in-olcRetc.patch
+Patch6004:      backport-ITS-9763-Maintain-values-in-order-of-insertion.patch
+Patch6005:      backport-ITS-9763-Warn-for-unsupported-configs.patch
+Patch6006:      backport-ITS-9770-slapo-constraint-Maintain-values-in-order-o.patch
+Patch6007:      backport-ITS-9772-Allow-objectClass-edits-that-don-t-actually.patch
+Patch6008:      backport-ITS-9781-Relax-refcount-assertion-for-referrals.patch
+Patch6009:      backport-ITS-9799-Clear-c_n_ops_pending-after-we-ve-flushed-c.patch
+Patch6010:      backport-ITS-9799-Drop-a-bind-connection-if-there-s-a-timeout.patch
+Patch6011:      backport-ITS-9802-slapd-ldap-meta-async-meta-plug-memleak-in-.patch
+Patch6012:      backport-ITS-9802-slapd-meta-fix-rewrite-config-ordering.patch
+Patch6013:      backport-ITS-9802-slapd-meta-fix-rewrite-config-SEGV.patch
+Patch6014:      backport-ITS-9802-Fix-argv-handling.patch
+Patch6015:      backport-ITS-9803-Drop-connection-when-receiving-non-LDAP-dat.patch
+Patch6016:      backport-ITS-9809-pcache-mdb-fix-SEGV-in-monitor-shutdown.patch
+Patch6017:      backport-ITS-9811-Allow-newlines-at-end-of-included-file.patch
+Patch6018:      backport-ITS-9818-Duplicate-substring-filters-correctly.patch
+Patch6019:      backport-ITS-9823-Check-minCSN-when-setting-up-delta-log-repl.patch
+Patch6020:      backport-ITS-9823-Only-request-minCSN-if-accesslog-is-around.patch
+Patch6021:      backport-ITS-9831-Advance-connections-index-correctly.patch
+Patch6022:      backport-ITS-9858-back-mdb-delay-indexer-task-startup.patch
+Patch6023:      backport-ITS-9858-back-mdb-fix-index-reconfig.patch
+Patch6024:      backport-ITS-9863-Forward-lastbind-updates-if-configured.patch
+Patch6025:      backport-ITS-9863-Regression-test-case-for-pwdLastSuccess.patch
+Patch6026:      backport-ITS-9864-slapo-accesslog-plug-onetime-memleaks.patch
+Patch6027:      backport-ITS-9866-delta-sync-fix-DN-leak-on-Adds.patch
+Patch6028:      backport-ITS-9867-syncprov-plug-findbase-memleak.patch
+Patch6029:      backport-ITS-9867-syncprov-plug-onetime-leak.patch
+Patch6030:      backport-ITS-9868-also-fixup-glue_sub_del.patch
+Patch6031:      backport-ITS-9868-Fixup-pending_csn_list-for-backglue.patch
+Patch6032:      backport-ITS-9871-slapo-ppolicy-use-explicit-backend-in-bind_.patch
+Patch6033:      backport-ITS-9876-Coverity-fixes-plug-memleaks.patch
+Patch6034:      backport-ITS-9876-Some-more-leaks-plugged.patch
+Patch6035:      backport-ITS-9882-bind-fix-9863-commit-use-correct-op-backend.patch
+Patch6036:      backport-ITS-9898-tests-fix-slapd-addel-non-std-syntax.patch
+Patch6037:      backport-ITS-9904-ldif_open_url-check-for-ber_strdup-failure.patch
+
 
 BuildRequires:  cyrus-sasl-devel openssl-devel krb5-devel unixODBC-devel
 BuildRequires:  glibc-devel libtool libtool-ltdl-devel groff perl-interpreter perl-devel perl-generators perl-ExtUtils-Embed
@@ -100,6 +140,45 @@ AUTOMAKE=%{_bindir}/true autoreconf -fi
 
 %patch9 -p1
 %patch10 -p1
+
+%patch6000 -p1
+%patch6001 -p1
+%patch6002 -p1
+%patch6003 -p1
+%patch6004 -p1
+%patch6005 -p1
+%patch6006 -p1
+%patch6007 -p1
+%patch6008 -p1
+%patch6009 -p1
+%patch6010 -p1
+%patch6011 -p1
+%patch6012 -p1
+%patch6013 -p1
+%patch6014 -p1
+%patch6015 -p1
+%patch6016 -p1
+%patch6017 -p1
+%patch6018 -p1
+%patch6019 -p1
+%patch6020 -p1
+%patch6021 -p1
+%patch6022 -p1
+%patch6023 -p1
+%patch6024 -p1
+%patch6025 -p1
+%patch6026 -p1
+%patch6027 -p1
+%patch6028 -p1
+%patch6029 -p1
+%patch6030 -p1
+%patch6031 -p1
+%patch6032 -p1
+%patch6033 -p1
+%patch6034 -p1
+%patch6035 -p1
+%patch6036 -p1
+%patch6037 -p1
 
 ln -s ../../../contrib/slapd-modules/smbk5pwd/smbk5pwd.c servers/slapd/overlays
 mv contrib/slapd-modules/smbk5pwd/README contrib/slapd-modules/smbk5pwd/README.smbk5pwd
@@ -381,6 +460,12 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Mon Nov 7 2022 zhujunhao <zhujunhao11@huawei.com> - 2.6.0-4
+- Type:bugfix
+- ID:NA
+- SUG:restart
+- DESC:backport patch
+
 * Mon May 16 2022 zhujunhao <zhujunhao11@huawei.com> - 2.6.0-3
 - Type:bugfix
 - ID:NA

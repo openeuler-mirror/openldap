@@ -1,0 +1,262 @@
+From 0d1db3c2b161b21beefc3d82622cfeb98fa95152 Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Sat, 18 Jun 2022 16:36:00 +0100
+Subject: [PATCH] ITS#9868 Fixup pending_csn_list for backglue
+
+Define in a new structure and point to it for more flexible access
+---
+ servers/slapd/backend.c              | 31 ++++++++++++----------------
+ servers/slapd/backglue.c             |  1 +
+ servers/slapd/ctxcsn.c               | 28 ++++++++++++-------------
+ servers/slapd/frontend.c             |  2 +-
+ servers/slapd/overlays/pcache.c      |  1 -
+ servers/slapd/overlays/translucent.c |  2 +-
+ servers/slapd/slap.h                 | 12 ++++++++---
+ 7 files changed, 39 insertions(+), 38 deletions(-)
+
+diff --git a/servers/slapd/backend.c b/servers/slapd/backend.c
+index 24a82f399..57cf1fe2d 100644
+--- a/servers/slapd/backend.c
++++ b/servers/slapd/backend.c
+@@ -199,10 +199,7 @@ int backend_startup_one(Backend *be, ConfigReply *cr)
+ 
+ 	assert( be != NULL );
+ 
+-	be->be_pending_csn_list = (struct be_pcl *)
+-		ch_calloc( 1, sizeof( struct be_pcl ) );
+-
+-	LDAP_TAILQ_INIT( be->be_pending_csn_list );
++	LDAP_TAILQ_INIT( &be->be_pcsn_st.be_pcsn_list );
+ 
+ 	Debug( LDAP_DEBUG_TRACE,
+ 		"backend_startup_one: starting \"%s\"\n",
+@@ -433,18 +430,15 @@ int backend_shutdown( Backend *be )
+ void
+ backend_stopdown_one( BackendDB *bd )
+ {
+-	if ( bd->be_pending_csn_list ) {
+-		struct slap_csn_entry *csne;
+-		csne = LDAP_TAILQ_FIRST( bd->be_pending_csn_list );
+-		while ( csne ) {
+-			struct slap_csn_entry *tmp_csne = csne;
++	struct slap_csn_entry *csne;
++	csne = LDAP_TAILQ_FIRST( &bd->be_pcsn_st.be_pcsn_list );
++	while ( csne ) {
++		struct slap_csn_entry *tmp_csne = csne;
+ 
+-			LDAP_TAILQ_REMOVE( bd->be_pending_csn_list, csne, ce_csn_link );
+-			ch_free( csne->ce_csn.bv_val );
+-			csne = LDAP_TAILQ_NEXT( csne, ce_csn_link );
+-			ch_free( tmp_csne );
+-		}
+-		ch_free( bd->be_pending_csn_list );
++		LDAP_TAILQ_REMOVE( &bd->be_pcsn_st.be_pcsn_list, csne, ce_csn_link );
++		ch_free( csne->ce_csn.bv_val );
++		csne = LDAP_TAILQ_NEXT( csne, ce_csn_link );
++		ch_free( tmp_csne );
+ 	}
+ 
+ 	if ( bd->bd_info->bi_db_destroy ) {
+@@ -487,7 +481,7 @@ void backend_destroy_one( BackendDB *bd, int dynamic )
+ 		ber_bvarray_free( bd->be_update_refs );
+ 	}
+ 
+-	ldap_pvt_thread_mutex_destroy( &bd->be_pcl_mutex );
++	ldap_pvt_thread_mutex_destroy( &bd->be_pcsn_st.be_pcsn_mutex );
+ 
+ 	if ( dynamic ) {
+ 		free( bd );
+@@ -624,7 +618,8 @@ backend_db_init(
+ 	be->be_requires = frontendDB->be_requires;
+ 	be->be_ssf_set = frontendDB->be_ssf_set;
+ 
+-	ldap_pvt_thread_mutex_init( &be->be_pcl_mutex );
++	ldap_pvt_thread_mutex_init( &be->be_pcsn_st.be_pcsn_mutex );
++	be->be_pcsn_p = &be->be_pcsn_st;
+ 
+  	/* assign a default depth limit for alias deref */
+ 	be->be_max_deref_depth = SLAPD_DEFAULT_MAXDEREFDEPTH; 
+@@ -638,7 +633,7 @@ backend_db_init(
+ 		/* If we created and linked this be, remove it and free it */
+ 		if ( !b0 ) {
+ 			LDAP_STAILQ_REMOVE(&backendDB, be, BackendDB, be_next);
+-			ldap_pvt_thread_mutex_destroy( &be->be_pcl_mutex );
++			ldap_pvt_thread_mutex_destroy( &be->be_pcsn_st.be_pcsn_mutex );
+ 			ch_free( be );
+ 			be = NULL;
+ 			nbackends--;
+diff --git a/servers/slapd/backglue.c b/servers/slapd/backglue.c
+index e7db4ff2d..6f8d3324b 100644
+--- a/servers/slapd/backglue.c
++++ b/servers/slapd/backglue.c
+@@ -1440,6 +1440,7 @@ glue_sub_attach( int online )
+ 				&gi->gi_n[gi->gi_nodes].gn_pdn );
+ 			gi->gi_nodes++;
+ 			on->on_bi.bi_private = gi;
++			ga->ga_be->be_pcsn_p = be->be_pcsn_p;
+ 			ga->ga_be->be_flags |= SLAP_DBFLAG_GLUE_LINKED;
+ 			break;
+ 		}
+diff --git a/servers/slapd/ctxcsn.c b/servers/slapd/ctxcsn.c
+index 55da64956..a8f73c319 100644
+--- a/servers/slapd/ctxcsn.c
++++ b/servers/slapd/ctxcsn.c
+@@ -54,9 +54,9 @@ slap_get_commit_csn(
+ 		sid = slap_parse_csn_sid( &op->o_csn );
+ 	}
+ 
+-	ldap_pvt_thread_mutex_lock( &be->be_pcl_mutex );
++	ldap_pvt_thread_mutex_lock( &be->be_pcsn_p->be_pcsn_mutex );
+ 
+-	LDAP_TAILQ_FOREACH( csne, be->be_pending_csn_list, ce_csn_link ) {
++	LDAP_TAILQ_FOREACH( csne, &be->be_pcsn_p->be_pcsn_list, ce_csn_link ) {
+ 		if ( csne->ce_op == op ) {
+ 			csne->ce_state = SLAP_CSN_COMMIT;
+ 			if ( foundit ) *foundit = 1;
+@@ -64,7 +64,7 @@ slap_get_commit_csn(
+ 		}
+ 	}
+ 
+-	LDAP_TAILQ_FOREACH( csne, be->be_pending_csn_list, ce_csn_link ) {
++	LDAP_TAILQ_FOREACH( csne, &be->be_pcsn_p->be_pcsn_list, ce_csn_link ) {
+ 		if ( sid != -1 && sid == csne->ce_sid ) {
+ 			if ( csne->ce_state == SLAP_CSN_COMMIT ) committed_csne = csne;
+ 			if ( csne->ce_state == SLAP_CSN_PENDING ) break;
+@@ -82,7 +82,7 @@ slap_get_commit_csn(
+ 			maxcsn->bv_val[0] = 0;
+ 		}
+ 	}
+-	ldap_pvt_thread_mutex_unlock( &be->be_pcl_mutex );
++	ldap_pvt_thread_mutex_unlock( &be->be_pcsn_p->be_pcsn_mutex );
+ }
+ 
+ void
+@@ -91,16 +91,16 @@ slap_rewind_commit_csn( Operation *op )
+ 	struct slap_csn_entry *csne;
+ 	BackendDB *be = op->o_bd->bd_self;
+ 
+-	ldap_pvt_thread_mutex_lock( &be->be_pcl_mutex );
++	ldap_pvt_thread_mutex_lock( &be->be_pcsn_p->be_pcsn_mutex );
+ 
+-	LDAP_TAILQ_FOREACH( csne, be->be_pending_csn_list, ce_csn_link ) {
++	LDAP_TAILQ_FOREACH( csne, &be->be_pcsn_p->be_pcsn_list, ce_csn_link ) {
+ 		if ( csne->ce_op == op ) {
+ 			csne->ce_state = SLAP_CSN_PENDING;
+ 			break;
+ 		}
+ 	}
+ 
+-	ldap_pvt_thread_mutex_unlock( &be->be_pcl_mutex );
++	ldap_pvt_thread_mutex_unlock( &be->be_pcsn_p->be_pcsn_mutex );
+ }
+ 
+ void
+@@ -113,11 +113,11 @@ slap_graduate_commit_csn( Operation *op )
+ 	if ( op->o_bd == NULL ) return;
+ 	be = op->o_bd->bd_self;
+ 
+-	ldap_pvt_thread_mutex_lock( &be->be_pcl_mutex );
++	ldap_pvt_thread_mutex_lock( &be->be_pcsn_p->be_pcsn_mutex );
+ 
+-	LDAP_TAILQ_FOREACH( csne, be->be_pending_csn_list, ce_csn_link ) {
++	LDAP_TAILQ_FOREACH( csne, &be->be_pcsn_p->be_pcsn_list, ce_csn_link ) {
+ 		if ( csne->ce_op == op ) {
+-			LDAP_TAILQ_REMOVE( be->be_pending_csn_list,
++			LDAP_TAILQ_REMOVE( &be->be_pcsn_p->be_pcsn_list,
+ 				csne, ce_csn_link );
+ 			Debug( LDAP_DEBUG_SYNC, "slap_graduate_commit_csn: removing %p %s\n",
+ 				csne, csne->ce_csn.bv_val );
+@@ -130,7 +130,7 @@ slap_graduate_commit_csn( Operation *op )
+ 		}
+ 	}
+ 
+-	ldap_pvt_thread_mutex_unlock( &be->be_pcl_mutex );
++	ldap_pvt_thread_mutex_unlock( &be->be_pcsn_p->be_pcsn_mutex );
+ 
+ 	return;
+ }
+@@ -194,10 +194,10 @@ slap_queue_csn(
+ 	pending->ce_op = op;
+ 	pending->ce_state = SLAP_CSN_PENDING;
+ 
+-	ldap_pvt_thread_mutex_lock( &be->be_pcl_mutex );
+-	LDAP_TAILQ_INSERT_TAIL( be->be_pending_csn_list,
++	ldap_pvt_thread_mutex_lock( &be->be_pcsn_p->be_pcsn_mutex );
++	LDAP_TAILQ_INSERT_TAIL( &be->be_pcsn_p->be_pcsn_list,
+ 		pending, ce_csn_link );
+-	ldap_pvt_thread_mutex_unlock( &be->be_pcl_mutex );
++	ldap_pvt_thread_mutex_unlock( &be->be_pcsn_p->be_pcsn_mutex );
+ }
+ 
+ int
+diff --git a/servers/slapd/frontend.c b/servers/slapd/frontend.c
+index c773f49c4..d0ca419ab 100644
+--- a/servers/slapd/frontend.c
++++ b/servers/slapd/frontend.c
+@@ -108,7 +108,7 @@ frontend_init( void )
+ 	frontendDB->be_def_limit.lms_s_pr_hide = 0;			/* don't hide number of entries left */
+ 	frontendDB->be_def_limit.lms_s_pr_total = 0;			/* number of total entries returned by pagedResults equal to hard limit */
+ 
+-	ldap_pvt_thread_mutex_init( &frontendDB->be_pcl_mutex );
++	ldap_pvt_thread_mutex_init( &frontendDB->be_pcsn_st.be_pcsn_mutex );
+ 
+ 	/* suffix */
+ 	frontendDB->be_suffix = ch_calloc( 2, sizeof( struct berval ) );
+diff --git a/servers/slapd/overlays/pcache.c b/servers/slapd/overlays/pcache.c
+index fcf29c60b..423c19641 100644
+--- a/servers/slapd/overlays/pcache.c
++++ b/servers/slapd/overlays/pcache.c
+@@ -4540,7 +4540,6 @@ pcache_db_init(
+ 	SLAP_DBFLAGS(&cm->db) |= SLAP_DBFLAG_NO_SCHEMA_CHECK;
+ 	cm->db.be_private = NULL;
+ 	cm->db.bd_self = &cm->db;
+-	cm->db.be_pending_csn_list = NULL;
+ 	cm->qm = qm;
+ 	cm->numattrsets = 0;
+ 	cm->num_entries_limit = 5;
+diff --git a/servers/slapd/overlays/translucent.c b/servers/slapd/overlays/translucent.c
+index d0402fe14..2cd18a350 100644
+--- a/servers/slapd/overlays/translucent.c
++++ b/servers/slapd/overlays/translucent.c
+@@ -1440,7 +1440,7 @@ translucent_db_destroy( BackendDB *be, ConfigReply *cr )
+ 			backend_stopdown_one( &ov->db );
+ 		}
+ 
+-		ldap_pvt_thread_mutex_destroy( &ov->db.be_pcl_mutex );
++		ldap_pvt_thread_mutex_destroy( &ov->db.be_pcsn_st.be_pcsn_mutex );
+ 		ch_free(ov);
+ 		on->on_bi.bi_private = NULL;
+ 	}
+diff --git a/servers/slapd/slap.h b/servers/slapd/slap.h
+index fee283f37..4a7a3f06b 100644
+--- a/servers/slapd/slap.h
++++ b/servers/slapd/slap.h
+@@ -1790,7 +1790,13 @@ struct sync_cookie {
+ 
+ LDAP_STAILQ_HEAD( slap_sync_cookie_s, sync_cookie );
+ 
+-LDAP_TAILQ_HEAD( be_pcl, slap_csn_entry );
++/* Defs for pending_csn_list */
++LDAP_TAILQ_HEAD( be_pclh, slap_csn_entry );
++
++typedef struct be_pcsn {
++	struct be_pclh			be_pcsn_list;
++	ldap_pvt_thread_mutex_t	be_pcsn_mutex;
++} be_pcsn;
+ 
+ #ifndef SLAP_MAX_CIDS
+ #define	SLAP_MAX_CIDS	32	/* Maximum number of supported controls */
+@@ -1999,8 +2005,8 @@ struct BackendDB {
+ 	/* Consumer Information */
+ 	struct berval be_update_ndn;	/* allowed to make changes (in replicas) */
+ 	BerVarray	be_update_refs;	/* where to refer modifying clients to */
+-	struct		be_pcl	*be_pending_csn_list;
+-	ldap_pvt_thread_mutex_t					be_pcl_mutex;
++	be_pcsn	be_pcsn_st;			/* be_pending_csn_list now inside this */
++	be_pcsn	*be_pcsn_p;
+ 	struct syncinfo_s						*be_syncinfo; /* For syncrepl */
+ 
+ 	void    *be_pb;         /* Netscape plugin */
+-- 
+2.33.0
+

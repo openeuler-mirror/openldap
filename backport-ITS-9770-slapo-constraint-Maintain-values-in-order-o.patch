@@ -1,0 +1,42 @@
+From 3ca8d6d388ddda5d8f1cfb3e6b354493bc4e3d72 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Kuzn=C3=ADk?= <ondra@mistotebe.net>
+Date: Fri, 10 Dec 2021 11:46:50 +0000
+Subject: [PATCH] ITS#9770 slapo-constraint: Maintain values in order of
+ insertion
+
+---
+ servers/slapd/overlays/constraint.c | 11 ++++++++---
+ 1 file changed, 8 insertions(+), 3 deletions(-)
+
+diff --git a/servers/slapd/overlays/constraint.c b/servers/slapd/overlays/constraint.c
+index 246769f67..c4ae8fffc 100644
+--- a/servers/slapd/overlays/constraint.c
++++ b/servers/slapd/overlays/constraint.c
+@@ -537,8 +537,8 @@ constraint_cf_gen( ConfigArgs *c )
+ 
+ done:;
+ 			if ( rc == LDAP_SUCCESS ) {
+-				constraint *a2 = ch_calloc( sizeof(constraint), 1 );
+-				a2->ap_next = on->on_bi.bi_private;
++				constraint **app, *a2 = ch_calloc( sizeof(constraint), 1 );
++
+ 				a2->ap = ap.ap;
+ 				a2->type = ap.type;
+ 				a2->re = ap.re;
+@@ -556,7 +556,12 @@ done:;
+ 				a2->restrict_ndn = ap.restrict_ndn;
+ 				a2->restrict_filter = ap.restrict_filter;
+ 				a2->restrict_val = ap.restrict_val;
+-				on->on_bi.bi_private = a2;
++
++				for ( app = &on->on_bi.bi_private; *app; app = &(*app)->ap_next )
++					/* Get to the end */ ;
++
++				a2->ap_next = *app;
++				*app = a2;
+ 
+ 			} else {
+ 				Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
+-- 
+2.33.0
+
