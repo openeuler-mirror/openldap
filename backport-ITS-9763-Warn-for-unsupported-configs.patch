@@ -1,0 +1,31 @@
+From 303d3d4028e9fd0e5939bb5d7d1bb9c3fd5f5002 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Kuzn=C3=ADk?= <ondra@mistotebe.net>
+Date: Tue, 4 Jan 2022 14:05:51 +0000
+Subject: [PATCH] ITS#9763 Warn for unsupported configs
+
+---
+ servers/slapd/overlays/refint.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+diff --git a/servers/slapd/overlays/refint.c b/servers/slapd/overlays/refint.c
+index 04aa1f7ad..6f966a7ea 100644
+--- a/servers/slapd/overlays/refint.c
++++ b/servers/slapd/overlays/refint.c
+@@ -242,6 +242,14 @@ refint_cf_gen(ConfigArgs *c)
+ 		switch ( c->type ) {
+ 		case REFINT_ATTRS:
+ 			rc = 0;
++			if ( c->op != SLAP_CONFIG_ADD && c->argc > 2 ) {
++				/* We wouldn't know how to delete these values later */
++				Debug( LDAP_DEBUG_CONFIG|LDAP_DEBUG_NONE,
++					"Supplying multiple names in a single %s value is "
++					"unsupported and will be disallowed in a future version\n",
++					c->argv[0] );
++			}
++
+ 			for ( i=1; i < c->argc; ++i ) {
+ 				ad = NULL;
+ 				if ( slap_str2ad ( c->argv[i], &ad, &text )
+-- 
+2.33.0
+

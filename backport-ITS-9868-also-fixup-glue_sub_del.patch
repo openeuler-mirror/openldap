@@ -1,0 +1,28 @@
+From fbe844f814e853184f5fb877da48a294f8bd874e Mon Sep 17 00:00:00 2001
+From: Howard Chu <hyc@openldap.org>
+Date: Wed, 22 Jun 2022 14:50:58 +0100
+Subject: [PATCH] ITS#9868 also fixup glue_sub_del()
+
+---
+ servers/slapd/backglue.c | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+diff --git a/servers/slapd/backglue.c b/servers/slapd/backglue.c
+index 6f8d3324b..3183f2f46 100644
+--- a/servers/slapd/backglue.c
++++ b/servers/slapd/backglue.c
+@@ -1381,6 +1381,11 @@ glue_sub_del( BackendDB *b0 )
+ 				gi->gi_nodes--;
+ 			}
+ 		}
++		/* Mark as no longer linked/sub */
++		b0->be_flags &= ~(SLAP_DBFLAG_GLUE_SUBORDINATE|SLAP_DBFLAG_GLUE_LINKED|
++			SLAP_DBFLAG_GLUE_ADVERTISE);
++		b0->be_pcsn_p = &b0->be_pcsn_st;
++		break;
+ 	}
+ 	if ( be == NULL )
+ 		rc = LDAP_NO_SUCH_OBJECT;
+-- 
+2.33.0
+

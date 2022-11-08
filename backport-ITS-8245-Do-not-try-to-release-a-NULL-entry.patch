@@ -1,0 +1,62 @@
+From 81b5ca9113d05190af6aff965b63e82730e00f55 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Kuzn=C3=ADk?= <ondra@mistotebe.net>
+Date: Fri, 10 Jun 2022 09:39:18 +0100
+Subject: [PATCH] ITS#8245 Do not try to release a NULL entry
+
+---
+ servers/slapd/overlays/unique.c | 32 ++++++++++++++++++--------------
+ 1 file changed, 18 insertions(+), 14 deletions(-)
+
+diff --git a/servers/slapd/overlays/unique.c b/servers/slapd/overlays/unique.c
+index 9e8bbeaba..e71fabfd2 100644
+--- a/servers/slapd/overlays/unique.c
++++ b/servers/slapd/overlays/unique.c
+@@ -1229,13 +1229,15 @@ unique_modify(
+ 		return rc;
+ 	}
+ 
+-	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) || (
+-			get_relax(op) > SLAP_CONTROL_IGNORED
+-			&& overlay_entry_get_ov(op, &op->o_req_ndn, NULL, NULL, 0, &e, on) == LDAP_SUCCESS
+-			&& e
+-			&& access_allowed( op, e,
+-				slap_schema.si_ad_entry, NULL,
+-				ACL_MANAGE, NULL ) ) ) {
++	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) ) {
++		return rc;
++	}
++	if ( get_relax(op) > SLAP_CONTROL_IGNORED
++		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
++		&& e
++		&& access_allowed( op, e,
++			slap_schema.si_ad_entry, NULL,
++			ACL_MANAGE, NULL ) ) {
+ 		overlay_entry_release_ov( op, e, 0, on );
+ 		return rc;
+ 	}
+@@ -1367,13 +1369,15 @@ unique_modrdn(
+ 	Debug(LDAP_DEBUG_TRACE, "==> unique_modrdn <%s> <%s>\n",
+ 		op->o_req_dn.bv_val, op->orr_newrdn.bv_val );
+ 
+-	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) || (
+-			get_relax(op) > SLAP_CONTROL_IGNORED
+-			&& overlay_entry_get_ov(op, &op->o_req_ndn, NULL, NULL, 0, &e, on) == LDAP_SUCCESS
+-			&& e
+-			&& access_allowed( op, e,
+-				slap_schema.si_ad_entry, NULL,
+-				ACL_MANAGE, NULL ) ) ) {
++	if ( SLAPD_SYNC_IS_SYNCCONN( op->o_connid ) ) {
++		return rc;
++	}
++	if ( get_relax(op) > SLAP_CONTROL_IGNORED
++		&& overlay_entry_get_ov( op, &op->o_req_ndn, NULL, NULL, 0, &e, on ) == LDAP_SUCCESS
++		&& e
++		&& access_allowed( op, e,
++			slap_schema.si_ad_entry, NULL,
++			ACL_MANAGE, NULL ) ) {
+ 		overlay_entry_release_ov( op, e, 0, on );
+ 		return rc;
+ 	}
+-- 
+2.33.0
+
