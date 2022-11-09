@@ -1,0 +1,74 @@
+From f7bdf7aaf40b9b9c7825fc614fb09e836f8df8d5 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Kuzn=C3=ADk?= <ondra@mistotebe.net>
+Date: Mon, 11 Apr 2022 16:57:59 +0100
+Subject: [PATCH] ITS#9818 Duplicate substring filters correctly
+
+---
+ servers/slapd/overlays/translucent.c | 24 +++++++++++++++++++++++-
+ tests/scripts/test034-translucent    |  8 ++++++++
+ 2 files changed, 31 insertions(+), 1 deletion(-)
+
+diff --git a/servers/slapd/overlays/translucent.c b/servers/slapd/overlays/translucent.c
+index 01786bf10..d0402fe14 100644
+--- a/servers/slapd/overlays/translucent.c
++++ b/servers/slapd/overlays/translucent.c
+@@ -1000,7 +1000,6 @@ trans_filter_dup(Operation *op, Filter *f, AttributeName *an)
+ 	case LDAP_FILTER_GE:
+ 	case LDAP_FILTER_LE:
+ 	case LDAP_FILTER_APPROX:
+-	case LDAP_FILTER_SUBSTRINGS:
+ 	case LDAP_FILTER_EXT:
+ 		if ( !f->f_av_desc || ad_inlist( f->f_av_desc, an )) {
+ 			AttributeAssertion *nava;
+@@ -1017,6 +1016,29 @@ trans_filter_dup(Operation *op, Filter *f, AttributeName *an)
+ 		}
+ 		break;
+ 
++	case LDAP_FILTER_SUBSTRINGS:
++		if ( !f->f_av_desc || ad_inlist( f->f_av_desc, an )) {
++			SubstringsAssertion *nsub;
++
++			n = op->o_tmpalloc( sizeof(Filter), op->o_tmpmemctx );
++			n->f_choice = f->f_choice;
++
++			nsub = op->o_tmpalloc( sizeof(SubstringsAssertion), op->o_tmpmemctx );
++			*nsub = *f->f_sub;
++			n->f_sub = nsub;
++
++			if ( !BER_BVISNULL( &f->f_sub_initial ))
++				ber_dupbv_x( &n->f_sub_initial, &f->f_sub_initial, op->o_tmpmemctx );
++
++			ber_bvarray_dup_x( &n->f_sub_any, f->f_sub_any, op->o_tmpmemctx );
++
++			if ( !BER_BVISNULL( &f->f_sub_final ))
++				ber_dupbv_x( &n->f_sub_final, &f->f_sub_final, op->o_tmpmemctx );
++
++			n->f_next = NULL;
++		}
++		break;
++
+ 	case LDAP_FILTER_AND:
+ 	case LDAP_FILTER_OR:
+ 	case LDAP_FILTER_NOT: {
+diff --git a/tests/scripts/test034-translucent b/tests/scripts/test034-translucent
+index 511ebeddc..8b834d989 100755
+--- a/tests/scripts/test034-translucent
++++ b/tests/scripts/test034-translucent
+@@ -755,6 +755,14 @@ if test -z "$ATTR" ; then
+ 	exit 1
+ fi
+ 
++$LDAPSEARCH -H $URI2 -b "o=translucent" "(employeeType=consult*)" > $SEARCHOUT 2>&1
++ATTR=`grep dn: $SEARCHOUT` > $NOWHERE 2>&1
++if test -z "$ATTR" ; then
++	echo "got no result, should have found entry"
++	test $KILLSERVERS != no && kill -HUP $KILLPIDS
++	exit 1
++fi
++
+ echo "Testing search: unconfigured remote filter..."
+ $LDAPSEARCH -H $URI2 -b "o=translucent" "(|(employeeType=foo)(carlicense=right))" > $SEARCHOUT 2>&1
+ 
+-- 
+2.33.0
+
