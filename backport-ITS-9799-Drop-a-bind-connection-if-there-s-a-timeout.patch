@@ -1,0 +1,40 @@
+From 34ebfac7efd2493f8f4db700b19145986f5112fe Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Kuzn=C3=ADk?= <ondra@mistotebe.net>
+Date: Wed, 2 Mar 2022 11:44:01 +0000
+Subject: [PATCH] ITS#9799 Drop a bind connection if there's a timeout
+
+---
+ servers/lloadd/operation.c | 7 ++++---
+ 1 file changed, 4 insertions(+), 3 deletions(-)
+
+diff --git a/servers/lloadd/operation.c b/servers/lloadd/operation.c
+index 3414d1d6e..0f875bb8e 100644
+--- a/servers/lloadd/operation.c
++++ b/servers/lloadd/operation.c
+@@ -616,19 +616,20 @@ connection_timeout( LloadConnection *upstream, void *arg )
+                                                LDAP_ADMINLIMIT_EXCEEDED,
+                 "upstream did not respond in time", 0 );
+ 
+-        if ( rc == LDAP_SUCCESS ) {
++        if ( upstream->c_type != LLOAD_C_BIND && rc == LDAP_SUCCESS ) {
+             rc = operation_send_abandon( op, upstream );
+         }
+         operation_unlink( op );
+     }
+ 
+-    /* TODO: if operation_send_abandon failed, we need to kill the upstream */
+     if ( rc == LDAP_SUCCESS ) {
+         connection_write_cb( -1, 0, upstream );
+     }
+ 
+     CONNECTION_LOCK(upstream);
+-    if ( upstream->c_state == LLOAD_C_CLOSING && !upstream->c_ops ) {
++    /* ITS#9799: If a Bind timed out, connection is in an unknown state */
++    if ( upstream->c_type == LLOAD_C_BIND || rc != LDAP_SUCCESS ||
++            ( upstream->c_state == LLOAD_C_CLOSING && !upstream->c_ops ) ) {
+         CONNECTION_DESTROY(upstream);
+     } else {
+         CONNECTION_UNLOCK(upstream);
+-- 
+2.33.0
+

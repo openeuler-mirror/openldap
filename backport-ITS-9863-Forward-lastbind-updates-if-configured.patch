@@ -1,0 +1,66 @@
+From fb1151573f8f597bb724df80de7a1664d1e646a4 Mon Sep 17 00:00:00 2001
+From: Quanah Gibson-Mount <quanah@openldap.org>
+Date: Thu, 23 Jun 2022 17:03:07 +0000
+Subject: [PATCH] ITS#9863 - Forward lastbind updates if configured
+
+Mark lastbind operations as being on the frontendDB so that chaining configurations are honored.
+
+Make pwdLastSuccess flag SLAP_AT_MANAGEABLE
+---
+ servers/slapd/back-ldap/bind.c | 2 +-
+ servers/slapd/bind.c           | 5 ++---
+ servers/slapd/schema_prep.c    | 2 +-
+ 3 files changed, 4 insertions(+), 5 deletions(-)
+
+diff --git a/servers/slapd/back-ldap/bind.c b/servers/slapd/back-ldap/bind.c
+index cad7cfe69..02fb60ea3 100644
+--- a/servers/slapd/back-ldap/bind.c
++++ b/servers/slapd/back-ldap/bind.c
+@@ -1417,7 +1417,7 @@ retry_lock:;
+ 				sb->sb_realm.bv_val,
+ 				sb->sb_authcId.bv_val,
+ 				sb->sb_cred.bv_val,
+-				NULL );
++				sb->sb_authzId.bv_val );
+ 		if ( defaults == NULL ) {
+ 			rs->sr_err = LDAP_OTHER;
+ 			LDAP_BACK_CONN_ISBOUND_CLEAR( lc );
+diff --git a/servers/slapd/bind.c b/servers/slapd/bind.c
+index 1a74a8cd4..4b8eda69b 100644
+--- a/servers/slapd/bind.c
++++ b/servers/slapd/bind.c
+@@ -472,9 +472,6 @@ fe_op_lastbind( Operation *op )
+ 	op2.o_dn = op->o_bd->be_rootdn;
+ 	op2.o_ndn = op->o_bd->be_rootndn;
+ 
+-	/*
+-	 * TODO: this is core+frontend, not everything works the same way?
+-	 */
+ 	/*
+ 	 * Code for forwarding of updates adapted from ppolicy.c of slapo-ppolicy
+ 	 *
+@@ -485,6 +482,8 @@ fe_op_lastbind( Operation *op )
+ 	 * must be configured appropriately for this to be useful.
+ 	 */
+ 	if ( SLAP_SHADOW( op->o_bd ) ) {
++		op2.o_bd = frontendDB;
++
+ 		/* Must use Relax control since these are no-user-mod */
+ 		op2.o_relax = SLAP_CONTROL_CRITICAL;
+ 		op2.o_ctrls = ca;
+diff --git a/servers/slapd/schema_prep.c b/servers/slapd/schema_prep.c
+index 2c557905c..b8793f50f 100644
+--- a/servers/slapd/schema_prep.c
++++ b/servers/slapd/schema_prep.c
+@@ -1028,7 +1028,7 @@ static struct slap_schema_ad_map {
+ 			"SINGLE-VALUE "
+ 			"NO-USER-MODIFICATION "
+ 			"USAGE directoryOperation )",
+-		NULL, 0,
++		NULL, SLAP_AT_MANAGEABLE,
+ 		NULL, NULL,
+ 		NULL, NULL, NULL, NULL, NULL,
+ 		offsetof(struct slap_internal_schema, si_ad_pwdLastSuccess) },
+-- 
+2.33.0
+

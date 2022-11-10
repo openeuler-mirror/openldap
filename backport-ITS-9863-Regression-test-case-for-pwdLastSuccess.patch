@@ -1,0 +1,897 @@
+From cfa6c07c0ef15fd218013859903401f04f953965 Mon Sep 17 00:00:00 2001
+From: Quanah Gibson-Mount <quanah@openldap.org>
+Date: Mon, 27 Jun 2022 22:21:51 +0000
+Subject: [PATCH] ITS#9863 - Regression test case for pwdLastSuccess
+
+Define a regression test case for modifying pwdLastSuccess that also
+uses SASL/EXTERNAL for the chain database
+---
+ tests/data/regressions/its9863/db.ldif        |  39 +++
+ tests/data/regressions/its9863/its9863        | 292 ++++++++++++++++++
+ .../regressions/its9863/slapd-consumer.ldif   | 154 +++++++++
+ .../regressions/its9863/slapd-provider.ldif   | 117 +++++++
+ tests/data/tls/certs/ldap-server.crt          |  32 ++
+ tests/data/tls/create-crt.sh                  |  64 +++-
+ tests/data/tls/private/ldap-server.key        |  52 ++++
+ tests/run.in                                  |   3 +-
+ tests/scripts/defines.sh                      |   1 +
+ 9 files changed, 740 insertions(+), 14 deletions(-)
+ create mode 100644 tests/data/regressions/its9863/db.ldif
+ create mode 100755 tests/data/regressions/its9863/its9863
+ create mode 100644 tests/data/regressions/its9863/slapd-consumer.ldif
+ create mode 100644 tests/data/regressions/its9863/slapd-provider.ldif
+ create mode 100644 tests/data/tls/certs/ldap-server.crt
+ create mode 100644 tests/data/tls/private/ldap-server.key
+
+diff --git a/tests/data/regressions/its9863/db.ldif b/tests/data/regressions/its9863/db.ldif
+new file mode 100644
+index 000000000..c7c478bb8
+--- /dev/null
++++ b/tests/data/regressions/its9863/db.ldif
+@@ -0,0 +1,39 @@
++dn: dc=example,dc=com
++objectClass: top
++objectClass: organization
++objectClass: dcObject
++o: example
++dc: example
++
++dn: cn=replicator,dc=example,dc=com
++objectClass: top
++objectClass: organizationalRole
++objectClass: simpleSecurityObject
++cn: replicator
++description: Replication user
++userPassword: secret
++
++dn: cn=ldap-server,dc=example,dc=com
++objectClass: top
++objectClass: organizationalRole
++objectClass: simpleSecurityObject
++cn: ldap-server
++description: ldap-server sasl object
++userPassword: secret
++authzTo: {0}dn.regex:^(.+,)+dc=example,dc=com$
++
++dn: ou=people,dc=example,dc=com
++objectClass: top
++objectClass: organizationalUnit
++ou: people
++
++dn: uid=test,ou=people,dc=example,dc=com
++objectClass: top
++objectClass: person
++objectClass: inetOrgPerson
++cn: test test
++uid: test
++sn: Test
++givenName: Test
++userPassword: secret
++
+diff --git a/tests/data/regressions/its9863/its9863 b/tests/data/regressions/its9863/its9863
+new file mode 100755
+index 000000000..d6b479515
+--- /dev/null
++++ b/tests/data/regressions/its9863/its9863
+@@ -0,0 +1,292 @@
++#! /bin/sh
++# $OpenLDAP$
++## This work is part of OpenLDAP Software <http://www.openldap.org/>.
++##
++## Copyright 2022 The OpenLDAP Foundation.
++## All rights reserved.
++##
++## Redistribution and use in source and binary forms, with or without
++## modification, are permitted only as authorized by the OpenLDAP
++## Public License.
++##
++## A copy of this license is available in the file LICENSE in the
++## top-level directory of the distribution or, alternatively, at
++## <http://www.OpenLDAP.org/license.html>.
++
++echo "running defines.sh"
++. $SRCDIR/scripts/defines.sh
++
++ITS=9863
++ITSDIR=$DATADIR/regressions/its$ITS
++
++if test $BACKLDAP = "ldapno" ; then
++	echo "LDAP backend not available, test skipped"
++	exit 0
++fi
++if test $SYNCPROV = "syncprovno" ; then
++	echo "syncprov overlay not available, test skipped"
++	exit 0
++fi
++if test $AUDITLOG = "auditlogno" ; then
++	echo "auditlog overlay not available, test skipped"
++	exit 0
++fi
++if test $UNIQUE = "uniqueno" ; then
++	echo "unique overlay not available, test skipped"
++	exit 0
++fi
++if test $CONSTRAINT = "constraintno" ; then
++	echo "constraint overlay not available, test skipped"
++	exit 0
++fi
++
++echo "This test checks slapo-chain behavior when forwarding lastbind"
++echo "information to a provider as the rootdn when using a SASL mechanism"
++echo "and authzto to allow identity assumption"
++echo "Test #1 ensures that authzid in IDAssertBind is working correctly."
++echo "Test #2 ensures that ACLbind works correctly."
++
++PDIR=$TESTDIR/prov
++CDIR=$TESTDIR/cons
++mkdir -p $TESTDIR $PDIR/db $PDIR/slapd.d
++mkdir -p $CDIR/db $CDIR/slapd.d
++
++$SLAPPASSWD -g -n >$CONFIGPWF
++
++cp -r $DATADIR/tls $TESTDIR
++cp $ITSDIR/db.ldif $TESTDIR
++
++#
++# Start slapd that acts as a remote LDAP server that will be proxied
++#
++echo "Running slapadd to build database on the provider..."
++. $CONFFILTER $BACKEND <  $ITSDIR/slapd-provider.ldif > $CONFLDIF
++$SLAPADD -F $PDIR/slapd.d -n 0 -l $CONFLDIF
++$SLAPADD -F $PDIR/slapd.d -q -b $BASEDN -l $TESTDIR/db.ldif
++RC=$?
++if test $RC != 0 ; then
++	echo "slapadd failed ($RC)!"
++	exit $RC
++fi
++
++echo "Starting slapd provider on TCP/IP port $PORT1 and ${PORT2}..."
++$SLAPD -F $PDIR/slapd.d -h "$URI1 $SURI2" -d $LVL > $LOG1 2>&1 &
++PROVPID=$!
++if test $WAIT != 0 ; then
++	echo PROVPID $PROVPID
++	read foo
++fi
++KILLPIDS="$KILLPIDS $PROVPID"
++
++echo "Using ldapsearch to check that slapd is running..."
++for i in 0 1 2 3 4 5; do
++	$LDAPSEARCH -s base -b "$MONITORDN" -H $URI1 \
++		-D $MANAGERDN \
++		-w $PASSWD \
++		'objectclass=*' > /dev/null 2>&1
++	RC=$?
++	if test $RC = 0 ; then
++		break
++	fi
++	echo "Waiting $SLEEP0 seconds for slapd to start..."
++	sleep $SLEEP0
++done
++
++if test $RC != 0 ; then
++	echo "ldapsearch failed ($RC)!"
++	test $KILLSERVERS != no && kill -HUP $PROVPID
++	exit $RC
++fi
++
++#
++# Start slapd consumer
++#
++echo "Starting slapd consumer on TCP/IP port $PORT3 and ${PORT4}..."
++. $CONFFILTER $BACKEND < $ITSDIR/slapd-consumer.ldif > $CONF2
++$SLAPADD -F $CDIR/slapd.d -n 0 -l $CONF2
++$SLAPD -F $CDIR/slapd.d -h "$URI3 $SURI4" -d $LVL > $LOG2 2>&1 &
++CONSPID=$!
++if test $WAIT != 0 ; then
++	echo CONSPID $CONSPID
++	read foo
++fi
++KILLPIDS="$KILLPIDS $CONSPID"
++
++echo "Using ldapsearch to check that slapd is running..."
++for i in 0 1 2 3 4 5; do
++	$LDAPSEARCH -s base -b "$MONITORDN" -H $URI3 \
++		-D $MANAGERDN \
++		-w $PASSWD \
++		'objectclass=*' > /dev/null 2>&1
++	RC=$?
++	if test $RC = 0 ; then
++		break
++	fi
++	echo "Waiting $SLEEP0 seconds for slapd to start..."
++	sleep $SLEEP0
++done
++
++if test $RC != 0 ; then
++	echo "ldapsearch failed ($RC)!"
++	test $KILLSERVERS != no && kill -HUP $KILLPIDS
++	exit $RC
++fi
++
++$LDAPWHOAMI -H $URI3 -x -D "cn=replicator,dc=example,dc=com" -w secret >/dev/null
++RC=$?
++if test $RC != 0 ; then
++	echo "ldapwhoami failed ($RC)!"
++	test $KILLSERVERS != no && kill -HUP $KILLPIDS
++	exit $RC
++fi
++
++echo "Sleeping $SLEEP1 seconds for replication of pwdLastSuccess attribute..."
++sleep $SLEEP1
++
++$LDAPSEARCH -H $URI3 -D "$MANAGERDN" -w $PASSWD -b "$BASEDN" "(cn=replicator)" pwdLastSuccess > $SEARCHOUT 2>&1
++PWDLASTSUCCESS=`grep "pwdLastSuccess:" $SEARCHOUT | wc -l`
++
++if test $PWDLASTSUCCESS != 1 ; then
++	echo "Failure: pwdLastSuccess failed to replicate"
++	test $KILLSERVERS != no && kill -HUP $KILLPIDS
++	exit 1
++fi
++
++echo "Reconfiguring for ACL bind test..."
++$LDAPMODIFY -H $URI3 -D cn=config -y $CONFIGPWF <<EOF >>$TESTOUT 2>&1
++dn: olcDatabase={0}ldap,olcOverlay={0}chain,olcDatabase={-1}frontend,cn=config
++changetype: modify
++replace: olcDbIDAssertBind
++olcDbIDAssertBind: mode=self flags=override,prescriptive,proxy-authz-critical 
++ bindmethod=sasl saslmech=external tls_cert=$TESTDIR/tls/certs/ldap-server.crt 
++ tls_key=$TESTDIR/tls/private/ldap-server.key 
++ tls_cacert=$TESTDIR/tls/ca/certs/testsuiteCA.crt
++-
++add: olcDbACLBind
++olcDbACLBind: bindmethod=sasl saslmech=external tls_cert=$TESTDIR/tls/certs/ldap-server.crt 
++ tls_key=$TESTDIR/tls/private/ldap-server.key 
++ tls_cacert=$TESTDIR/tls/ca/certs/testsuiteCA.crt 
++ authzid="dn:cn=manager,dc=example,dc=com"
++EOF
++
++RC=$?
++if test $RC != 0; then
++        echo "ldapmodify failed ($RC)!"
++        test $KILLSERVERS != no && kill -HUP $KILLPIDS
++        exit $RC
++fi
++
++echo "Stopping consumer to test recovery..."
++kill -HUP $CONSPID
++wait $CONSPID
++
++KILLPIDS="$PROVPID"
++
++echo "Starting slapd consumer on TCP/IP port $PORT3 and ${PORT4}..."
++$SLAPD -F $CDIR/slapd.d -h "$URI3 $SURI4" -d $LVL > $LOG2 2>&1 &
++CONSPID=$!
++if test $WAIT != 0 ; then
++	echo CONSPID $CONSPID
++	read foo
++fi
++KILLPIDS="$KILLPIDS $CONSPID"
++
++echo "Using ldapsearch to check that slapd is running..."
++for i in 0 1 2 3 4 5; do
++	$LDAPSEARCH -s base -b "$MONITORDN" -H $URI3 \
++		-D $MANAGERDN \
++		-w $PASSWD \
++		'objectclass=*' > /dev/null 2>&1
++	RC=$?
++	if test $RC = 0 ; then
++		break
++	fi
++	echo "Waiting $SLEEP0 seconds for slapd to start..."
++	sleep $SLEEP0
++done
++
++if test $RC != 0 ; then
++	echo "ldapsearch failed ($RC)!"
++	test $KILLSERVERS != no && kill -HUP $KILLPIDS
++	exit $RC
++fi
++
++$LDAPMODIFY -H $URI1 -D "$MANAGERDN" -w $PASSWD -e \!relax <<EOF >>$TESTOUT 2>&1
++dn: cn=replicator,dc=example,dc=com
++changetype: modify
++delete: pwdLastSuccess
++EOF
++
++RC=$?
++if test $RC != 0; then
++        echo "ldapmodify failed ($RC)!"
++        test $KILLSERVERS != no && kill -HUP $KILLPIDS
++        exit $RC
++fi
++
++echo "Sleeping $SLEEP1 seconds for replication of delete for pwdLastSuccess attribute..."
++sleep $SLEEP1
++
++$LDAPSEARCH -H $URI3 -D "$MANAGERDN" -w $PASSWD -b "$BASEDN" "(cn=replicator)" pwdLastSuccess > $SEARCHOUT 2>&1
++PWDLASTSUCCESS=`grep "pwdLastSuccess:" $SEARCHOUT | wc -l`
++
++if test $PWDLASTSUCCESS != 0 ; then
++	echo "Failure: pwdLastSuccess failed to delete"
++	test $KILLSERVERS != no && kill -HUP $KILLPIDS
++	exit 1
++fi
++
++$LDAPWHOAMI -H $URI3 -x -D "cn=replicator,dc=example,dc=com" -w secret >/dev/null
++RC=$?
++if test $RC != 0 ; then
++	echo "ldapwhoami failed ($RC)!"
++	test $KILLSERVERS != no && kill -HUP $KILLPIDS
++	exit $RC
++fi
++
++echo "Sleeping $SLEEP1 seconds for replication of pwdLastSuccess attribute..."
++sleep $SLEEP1
++
++$LDAPSEARCH -H $URI3 -D "$MANAGERDN" -w $PASSWD -b "$BASEDN" "(cn=replicator)" pwdLastSuccess > $SEARCHOUT 2>&1
++PWDLASTSUCCESS=`grep "pwdLastSuccess:" $SEARCHOUT | wc -l`
++
++if test $PWDLASTSUCCESS != 1 ; then
++	echo "Failure: pwdLastSuccess failed to replicate"
++	test $KILLSERVERS != no && kill -HUP $KILLPIDS
++	exit 1
++fi
++
++USER="uid=test,ou=people,dc=example,dc=com"
++echo "Changing password for $USER to test proxied user modifications work..."
++$LDAPPASSWD -H $URI3 \
++    -w secret -s secret \
++    -D "$USER" >> $TESTOUT 2>&1
++RC=$?
++if test $RC != 0 ; then
++    echo "ldappasswd failed ($RC)!"
++    test $KILLSERVERS != no && kill -HUP $KILLPIDS
++    exit $RC
++fi
++
++echo "Changing cn for $USER to test disallowed proxied user modifications should fail..."
++$LDAPMODIFY -H $URI3 -D "$USER" -w $PASSWD <<EOF >>$TESTOUT 2>&1
++dn: $USER
++changetype: modify
++replace: cn
++cn: blahblahblah
++EOF
++
++RC=$?
++if test $RC != 50; then
++        echo "ldapmodify should have failed with result code 50, got ($RC)!"
++        test $KILLSERVERS != no && kill -HUP $KILLPIDS
++        exit $RC
++fi
++
++test $KILLSERVERS != no && kill -HUP $KILLPIDS 2>/dev/null
++
++echo ">>>>> Test succeeded"
++
++test $KILLSERVERS != no && wait
++
++exit 0
+diff --git a/tests/data/regressions/its9863/slapd-consumer.ldif b/tests/data/regressions/its9863/slapd-consumer.ldif
+new file mode 100644
+index 000000000..8f7b0fd84
+--- /dev/null
++++ b/tests/data/regressions/its9863/slapd-consumer.ldif
+@@ -0,0 +1,154 @@
++dn: cn=config
++objectClass: olcGlobal
++cn: config
++olcLogLevel: Sync
++olcLogLevel: Stats
++olcTLSCACertificateFile: @TESTDIR@/tls/ca/certs/testsuiteCA.crt
++olcTLSCertificateKeyFile: @TESTDIR@/tls/private/localhost.key
++olcTLSCertificateFile: @TESTDIR@/tls/certs/localhost.crt
++olcTLSVerifyClient: hard
++olcIndexHash64: TRUE
++olcAuthzPolicy: to
++olcAuthzRegexp: {0}"cn=ldap-server,ou=OpenLDAP Test Suite,o=OpenLDAP Foundation,ST=CA,C=US" "cn=ldap-server,dc=example,dc=com"
++olcPidFile: @TESTDIR@/slapd.2.pid
++olcArgsFile: @TESTDIR@/slapd.2.args
++
++dn: cn=schema,cn=config
++objectClass: olcSchemaConfig
++cn: schema
++
++include: file://@TESTWD@/@SCHEMADIR@/core.ldif
++include: file://@TESTWD@/@SCHEMADIR@/cosine.ldif
++include: file://@TESTWD@/@SCHEMADIR@/inetorgperson.ldif
++include: file://@TESTWD@/@SCHEMADIR@/misc.ldif
++include: file://@TESTWD@/@SCHEMADIR@/nis.ldif
++
++#mod#dn: cn=module{0},cn=config
++#mod#objectClass: olcModuleList
++#mod#cn: module{0}
++#mod#olcModulePath: @TESTWD@/../servers/slapd/back-@BACKEND@/
++#mod#olcModuleLoad: {0}back_@BACKEND@.la
++
++#mod#dn: cn=module{1},cn=config
++#mod#objectClass: olcModuleList
++#mod#cn: module{1}
++#mod#olcModulePath: @TESTWD@/../servers/slapd/back-ldap/
++#mod#olcModuleLoad: {0}back_ldap.la
++
++dn: cn=module{2},cn=config
++objectClass: olcModuleList
++cn: module{2}
++olcModulePath: @TESTWD@/../servers/slapd/overlays
++olcModuleLoad: {0}syncprov.la
++olcModuleLoad: {1}unique.la
++olcModuleLoad: {2}constraint.la
++
++#mdb#dn: olcBackend={0}mdb,cn=config
++#mdb#objectClass: olcBackendConfig
++#mdb#objectClass: olcMdbBkConfig
++#mdb#olcBackend: {0}mdb
++#mdb#olcBkMdbIdlExp: 18
++
++dn: olcDatabase={-1}frontend,cn=config
++objectClass: olcDatabaseConfig
++objectClass: olcFrontendConfig
++olcDatabase: {-1}frontend
++olcAccess: {0}to dn.base=""  by * read
++olcAccess: {1}to dn.base="cn=Subschema"  by * read
++
++dn: olcOverlay={0}chain,olcDatabase={-1}frontend,cn=config
++objectClass: olcOverlayConfig
++objectClass: olcChainConfig
++olcOverlay: {0}chain
++olcChainCacheURI: FALSE
++olcChainMaxReferralDepth: 1
++olcChainReturnError: TRUE
++
++dn: olcDatabase={0}ldap,olcOverlay={0}chain,olcDatabase={-1}frontend,cn=config
++objectClass: olcLDAPConfig
++objectClass: olcChainDatabase
++olcDatabase: {0}ldap
++olcDbIDAssertBind: mode=self flags=override,prescriptive,proxy-authz-critical 
++ bindmethod=sasl saslmech=external tls_cert=@TESTDIR@/tls/certs/ldap-server.crt 
++ tls_key=@TESTDIR@/tls/private/ldap-server.key 
++ tls_cacert=@TESTDIR@/tls/ca/certs/testsuiteCA.crt 
++ authzid="dn:cn=manager,dc=example,dc=com"
++olcDbRebindAsUser: TRUE
++olcDbChaseReferrals: TRUE
++olcDbProxyWhoAmI: FALSE
++olcDbProtocolVersion: 3
++olcDbSingleConn: FALSE
++olcDbCancel: abandon
++olcDbUseTemporaryConn: FALSE
++olcDbConnectionPoolMax: 8
++olcDbSessionTrackingRequest: TRUE
++olcDbNoRefs: FALSE
++olcDbNoUndefFilter: FALSE
++olcDbURI: @SURIP2@
++
++dn: olcDatabase={0}config,cn=config
++objectClass: olcDatabaseConfig
++olcDatabase: {0}config
++olcRootPW:< file://@TESTDIR@/configpw
++olcAccess: {0}to *  by * none
++
++dn: olcDatabase={1}@BACKEND@,cn=config
++objectClass: olcDatabaseConfig
++objectClass: olc@BACKEND@Config
++olcDatabase: {1}@BACKEND@
++olcSuffix: dc=example,dc=com
++olcRootDN: cn=manager,dc=example,dc=com
++olcRootPW: secret
++olcLastBindPrecision: 3600
++olcLastBind: TRUE
++#~null~#olcDbDirectory: @TESTDIR@/cons/db
++#indexdb#olcDbIndex: default eq
++#indexdb#olcDbIndex: objectClass
++#indexdb#olcDbIndex: cn
++#indexdb#olcDbIndex: entryUUID
++#indexdb#olcDbIndex: entryCSN
++#indexdb#olcDbIndex: mail
++#indexdb#olcDbIndex: uid
++#indexdb#olcDbIndex: uidNumber
++#indexdb#olcDbIndex: gidNumber
++#mdb#olcDbMaxSize: 33554432
++#mdb#olcDbMultival: default 100,10
++olcLimits: {0}dn.exact="cn=replicator,dc=example,dc=com" time.soft=unlimited 
++  time.hard=unlimited size.soft=unlimited size.hard=unlimited
++olcAccess: {0}to attrs=userPassword  by self write  by dn.exact="cn=replicator,dc=example,dc=com" read  by anonymous auth
++olcAccess: {1}to attrs=authzto  by dn.exact="cn=replicator,dc=example,dc=com" read  by * auth
++olcAccess: {2}to *  by * read
++olcSyncrepl: {0}rid=100 provider=@SURIP2@ bindmethod=sasl 
++ saslmech=external authzid="dn:cn=replicator,dc=example,dc=com" 
++ searchbase="dc=example,dc=com" 
++ type=refreshAndPersist keepalive=60:5:2 retry="5 6 60 +" 
++ tls_cert=@TESTDIR@/tls/certs/ldap-server.crt 
++ tls_key=@TESTDIR@/tls/private/ldap-server.key 
++ tls_cacert=@TESTDIR@/tls/ca/certs/testsuiteCA.crt 
++ timeout=3
++olcUpdateRef: @SURIP2@
++
++dn: olcOverlay={0}syncprov,olcDatabase={1}@BACKEND@,cn=config
++objectClass: olcOverlayConfig
++objectClass: olcSyncProvConfig
++olcOverlay: {0}syncprov
++olcSpCheckpoint: 20 10
++
++dn: olcOverlay={1}unique,olcDatabase={1}@BACKEND@,cn=config
++objectClass: olcOverlayConfig
++objectClass: olcUniqueConfig
++olcOverlay: {1}unique
++olcUniqueURI: ldap:///?uid?sub?
++olcUniqueURI: ldap:///?uidNumber?sub?
++olcUniqueURI: ldap:///?mail?sub?
++
++dn: olcOverlay={2}constraint,olcDatabase={1}@BACKEND@,cn=config
++objectClass: olcOverlayConfig
++objectClass: olcConstraintConfig
++olcOverlay: {2}constraint
++olcConstraintAttribute: gidNumber regex ^[0-9]{4,5}$
++
++dn: olcDatabase={2}monitor,cn=config
++objectClass: olcDatabaseConfig
++olcDatabase: {2}monitor
++olcAccess: {0}to dn.subtree="cn=monitor"  by * read
+diff --git a/tests/data/regressions/its9863/slapd-provider.ldif b/tests/data/regressions/its9863/slapd-provider.ldif
+new file mode 100644
+index 000000000..aeeac571e
+--- /dev/null
++++ b/tests/data/regressions/its9863/slapd-provider.ldif
+@@ -0,0 +1,117 @@
++dn: cn=config
++objectClass: olcGlobal
++cn: config
++olcLogLevel: Sync
++olcLogLevel: Stats
++olcTLSCACertificateFile: @TESTDIR@/tls/ca/certs/testsuiteCA.crt
++olcTLSCertificateKeyFile: @TESTDIR@/tls/private/localhost.key
++olcTLSCertificateFile: @TESTDIR@/tls/certs/localhost.crt
++olcTLSVerifyClient: hard
++olcIndexHash64: TRUE
++olcAuthzPolicy: to
++olcAuthzRegexp: {0}"cn=ldap-server,ou=OpenLDAP Test Suite,o=OpenLDAP Foundation,ST=CA,C=US" "cn=ldap-server,dc=example,dc=com"
++olcPidFile: @TESTDIR@/slapd.1.pid
++olcArgsFile: @TESTDIR@/slapd.1.args
++
++dn: cn=schema,cn=config
++objectClass: olcSchemaConfig
++cn: schema
++
++include: file://@TESTWD@/@SCHEMADIR@/core.ldif
++include: file://@TESTWD@/@SCHEMADIR@/cosine.ldif
++include: file://@TESTWD@/@SCHEMADIR@/inetorgperson.ldif
++include: file://@TESTWD@/@SCHEMADIR@/misc.ldif
++include: file://@TESTWD@/@SCHEMADIR@/nis.ldif
++
++#mod#dn: cn=module{0},cn=config
++#mod#objectClass: olcModuleList
++#mod#cn: module{0}
++#mod#olcModulePath: @TESTWD@/../servers/slapd/back-@BACKEND@/
++#mod#olcModuleLoad: {0}back_@BACKEND@.la
++
++dn: cn=module{1},cn=config
++objectClass: olcModuleList
++cn: module{1}
++olcModulePath: @TESTWD@/../servers/slapd/overlays
++olcModuleLoad: {0}syncprov.la
++olcModuleLoad: {1}auditlog.la
++olcModuleLoad: {2}unique.la
++olcModuleLoad: {3}constraint.la
++
++#mdb#dn: olcBackend={0}mdb,cn=config
++#mdb#objectClass: olcBackendConfig
++#mdb#objectClass: olcMdbBkConfig
++#mdb#olcBackend: {0}mdb
++#mdb#olcBkMdbIdlExp: 18
++
++dn: olcDatabase={-1}frontend,cn=config
++objectClass: olcDatabaseConfig
++objectClass: olcFrontendConfig
++olcDatabase: {-1}frontend
++olcAccess: {0}to dn.base=""  by * read
++olcAccess: {1}to dn.base="cn=Subschema"  by * read
++
++dn: olcDatabase={0}config,cn=config
++objectClass: olcDatabaseConfig
++olcDatabase: {0}config
++olcRootPW:< file://@TESTDIR@/configpw
++olcAccess: {0}to *  by * none
++
++dn: olcDatabase={1}@BACKEND@,cn=config
++objectClass: olcDatabaseConfig
++objectClass: olc@BACKEND@Config
++olcDatabase: {1}@BACKEND@
++olcSuffix: dc=example,dc=com
++olcRootDN: cn=Manager,dc=example,dc=com
++olcRootPW: secret
++olcLastBindPrecision: 3600
++olcLastBind: FALSE
++olcLimits: {0}dn.exact="cn=replicator,dc=example,dc=com" time.soft=unlimited
++  time.hard=unlimited size.soft=unlimited size.hard=unlimited
++olcAccess: {0}to attrs=userPassword  by self write  by dn.exact="cn=replicator,dc=example,dc=com" read  by anonymous auth
++olcAccess: {1}to attrs=authzto  by dn.exact="cn=replicator,dc=example,dc=com" read  by * auth
++olcAccess: {2}to *  by * read
++#~null~#olcDbDirectory: @TESTDIR@/prov/db
++#indexdb#olcDbIndex: default eq
++#indexdb#olcDbIndex: objectClass
++#indexdb#olcDbIndex: cn
++#indexdb#olcDbIndex: entryUUID
++#indexdb#olcDbIndex: entryCSN
++#indexdb#olcDbIndex: mail
++#indexdb#olcDbIndex: uid
++#indexdb#olcDbIndex: uidNumber
++#indexdb#olcDbIndex: gidNumber
++#mdb#olcDbMaxSize: 33554432
++#mdb#olcDbMultival: default 100,10
++
++dn: olcOverlay={0}syncprov,olcDatabase={1}@BACKEND@,cn=config
++objectClass: olcOverlayConfig
++objectClass: olcSyncProvConfig
++olcOverlay: {0}syncprov
++olcSpCheckpoint: 20 10
++olcSpSessionlog: 150000
++
++dn: olcOverlay={1}auditlog,olcDatabase={1}@BACKEND@,cn=config
++objectClass: olcOverlayConfig
++objectClass: olcAuditlogConfig
++olcOverlay: {1}auditlog
++olcAuditlogFile: @TESTDIR@/audit.log
++
++dn: olcOverlay={2}unique,olcDatabase={1}@BACKEND@,cn=config
++objectClass: olcOverlayConfig
++objectClass: olcUniqueConfig
++olcOverlay: {2}unique
++olcUniqueURI: ldap:///?uid?sub?
++olcUniqueURI: ldap:///?uidNumber?sub?
++olcUniqueURI: ldap:///?mail?sub?
++
++dn: olcOverlay={3}constraint,olcDatabase={1}@BACKEND@,cn=config
++objectClass: olcOverlayConfig
++objectClass: olcConstraintConfig
++olcOverlay: {3}constraint
++olcConstraintAttribute: gidNumber regex ^[0-9]{4,5}$
++
++dn: olcDatabase={2}monitor,cn=config
++objectClass: olcDatabaseConfig
++olcDatabase: {2}monitor
++olcAccess: {0}to dn.subtree="cn=monitor"  by * read
+diff --git a/tests/data/tls/certs/ldap-server.crt b/tests/data/tls/certs/ldap-server.crt
+new file mode 100644
+index 000000000..ead23b9f1
+--- /dev/null
++++ b/tests/data/tls/certs/ldap-server.crt
+@@ -0,0 +1,32 @@
++-----BEGIN CERTIFICATE-----
++MIIFhzCCA2+gAwIBAgIBADANBgkqhkiG9w0BAQsFADBWMQswCQYDVQQGEwJVUzEL
++MAkGA1UECAwCQ0ExHDAaBgNVBAoME09wZW5MREFQIEZvdW5kYXRpb24xHDAaBgNV
++BAsME09wZW5MREFQIFRlc3QgU3VpdGUwIBcNMjIwNjI3MjE1MDE2WhgPMjUyMzA3
++MTEyMTUwMTZaMGwxCzAJBgNVBAYTAlVTMQswCQYDVQQIDAJDQTEcMBoGA1UECgwT
++T3BlbkxEQVAgRm91bmRhdGlvbjEcMBoGA1UECwwTT3BlbkxEQVAgVGVzdCBTdWl0
++ZTEUMBIGA1UEAwwLbGRhcC1zZXJ2ZXIwggIiMA0GCSqGSIb3DQEBAQUAA4ICDwAw
++ggIKAoICAQDgxEKurztQjO6n/4YV+VY0D1VH2E24TtfIWsAzwD0jnFCELVYreRaC
++WX4E6Bj/lXn1j/sMNBd7JidukgRqyx+AtTAtbmmOfZVzZZcNc65DuL/41Yviitvg
++nIiJcRjYEzVIeb5ixtvfEKhlREWS2TncBdK9U3yvr10z9xe2LvY1514r9Gf9u0Qn
++BNuogZDcs2w17ZmI9hzGcLWkE/6FBofIaiI779YcYb2dA9HFiKb9/CdJYY5pioUG
++CbTGKYINkDCblLEFV5j2mLosV6ueE6q6liK1fi+62LEOkPvieEMQBMIJaw2YrKD5
++TiGRJ67Ji97blifwG4JNSJLGxqZxQZNRruQOOjNjS/AgtWDmY+krmRAjfJiM7lhA
++BrlxLOTZKciEUmSbpvT0PPwBF90dOU9clQyOESQjkZEZeRdjQOapuzhJqlEI8rUD
++UiGKT0FeGLIQasvuGdKxZKm3DckI5/ABYP6byXJPGwAZMHcGeCznaUwreaQ4v9UZ
++5SyrIsRQbO6wMx6NIfPlvJyubeiTf8I/soO3VJfjyvuHWPd55R00gTNN9EXeaJUh
++8SBG+QClJ1NTt8/jN+ci6koTCi4/DynMZiKa5PwBHlayrtP8+sl4LsIispnWxUiO
++x7Xbco7ciXsrdm/FZVnugDiDF/pmW1nqcGVMXaf3L1QLPVrV0pOi7wIDAQABo0gw
++RjAJBgNVHRMEAjAAMAsGA1UdDwQEAwIF4DAsBgNVHREEJTAjgglsb2NhbGhvc3SH
++BH8AAAGHEAAAAAAAAAAAAAAAAAAAAAEwDQYJKoZIhvcNAQELBQADggIBAAcVPBdG
++rNC9ttlri4Ane9i+1Q6UGdbuXwBS+RQsfkmKY6ayHL+sWEeX7MinBiAmEEGkmYYw
++Ns4MLDldLqjQKITb5pCf+tIdVeCF7YpmC752grWmpQuvgOxvvxyrwSlt76X5OTAy
++ho8tl/bs0rbEmFUWR/FEBWIYNbYArYYgQjWyrZxyMjTzZSUO+tuXFV1bk8qM7bn0
++P9EcDyhtQrsOAXem/CDhWfwMLOGihb3Bw61n+dpypR/9Jaue10K9fsiIYcar+lHY
++QD4WEn5mH0wO2ExuGObyk3Vhs9cL7cVi4gSMH9yFbHG1hKUiOnZgj6FPIAlVz4Md
++LhkOdm7C6fkvhElvtHQPKOTSNqvDVwuHi2GeESg6LAY/IUhNqdK++KRsRRVLtMBe
++fFp34trd2q1VXa379rl5NCoV290nSNgpx6m9BUq3sZpjdo/dLZCwrN24IAN4okNN
++EE5h/7F5uSopkZYmwYjRYoEWig8UNtqqidYxVo60p372tBwgHb/U9FkUS0L91XKS
++xwPnlS9Hice7TgauQHtNO6E8Un960r0uhsO/+cW16/3A2WZWT91WLpTV3y4ALLBX
++H7qxCGvGoZgzE7uXQCtaZqaZuaciVe2Z2JTP+7IeiGZI/eKA3UVSiduBWLR+SbzI
++RxokaAYxcjCWjN6Hgp4RR1DCBZmNNKNzlwlZ
++-----END CERTIFICATE-----
+diff --git a/tests/data/tls/create-crt.sh b/tests/data/tls/create-crt.sh
+index 739f8eaf1..7c05093c4 100755
+--- a/tests/data/tls/create-crt.sh
++++ b/tests/data/tls/create-crt.sh
+@@ -8,9 +8,10 @@ fi
+ KEY_BITS=4096
+ KEY_TYPE=rsa:$KEY_BITS
+ 
+-USAGE="$0 [-s] [-u <user@domain.com>]"
++USAGE="$0 [-s] [-l] [-u <user@domain.com>]"
+ SERVER=0
+ USER=0
++LDAP_USER=0
+ EMAIL=
+ 
+ while test $# -gt 0 ; do
+@@ -26,6 +27,9 @@ while test $# -gt 0 ; do
+ 			USER=1;
+ 			EMAIL="$2";
+ 			shift; shift;;
++		-l | -ldap)
++			LDAP_USER=1;
++			shift;;
+ 		-)
+ 			shift;;
+ 		-*)
+@@ -36,23 +40,40 @@ while test $# -gt 0 ; do
+ 	esac
+ done
+ 
+-if [ $SERVER = 0 -a $USER = 0 ]; then
++if [ $SERVER = 0 -a $USER = 0 -a $LDAP_USER = 0 ]; then
+ 	echo "$USAGE";
+ 	exit 1;
+ fi
+ 
+-rm -rf ./openssl.cnf cruft
+-mkdir -p private certs cruft/private cruft/certs
++cleanup() {
++
++	rm -rf ./openssl.cnf cruft
++	if [ $SERVER = 1 ]; then
++		rm -f localhost.csr
++	fi
++	if [ $USER = 1 ]; then
++		rm -f $EMAIL.csr
++	fi
++	if [ $LDAP_USER = 1 ]; then
++		rm -f ldap-server.csr
++	fi
++
++}
++
++setup() {
++	mkdir -p private certs cruft/private cruft/certs
+ 
+-echo "00" > cruft/serial
+-touch cruft/index.txt
+-touch cruft/index.txt.attr
+-hn=$(hostname -f)
+-sed -e "s;@HOSTNAME@;$hn;" -e "s;@KEY_BITS@;$KEY_BITS;" conf/openssl.cnf >  ./openssl.cnf
++	echo "00" > cruft/serial
++	touch cruft/index.txt
++	touch cruft/index.txt.attr
++	hn=$(hostname -f)
++	sed -e "s;@HOSTNAME@;$hn;" -e "s;@KEY_BITS@;$KEY_BITS;" conf/openssl.cnf >  ./openssl.cnf
++}
+ 
+ if [ $SERVER = 1 ]; then
+-	rm -rf private/localhost.key certs/localhost.crt
+ 
++	$(cleanup)
++	$(setup)
+ 	$openssl req -new -nodes -out localhost.csr -keyout private/localhost.key \
+ 		-newkey $KEY_TYPE -config ./openssl.cnf \
+ 		-subj "/CN=localhost/OU=OpenLDAP Test Suite/O=OpenLDAP Foundation/ST=CA/C=US" \
+@@ -62,11 +83,12 @@ if [ $SERVER = 1 ]; then
+ 		-keyfile ca/private/testsuiteCA.key -extensions v3_req -cert ca/certs/testsuiteCA.crt \
+ 		-batch >/dev/null 2>&1
+ 
+-	rm -rf ./openssl.cnf ./localhost.csr cruft
+ fi
+ 
+ if [ $USER = 1 ]; then
+-	rm -f certs/$EMAIL.crt private/$EMAIL.key $EMAIL.csr
++
++	$(cleanup)
++	$(setup)
+ 
+ 	$openssl req -new -nodes -out $EMAIL.csr -keyout private/$EMAIL.key \
+ 		-newkey $KEY_TYPE -config ./openssl.cnf \
+@@ -77,5 +99,21 @@ if [ $USER = 1 ]; then
+ 		-keyfile ca/private/testsuiteCA.key -extensions req_distinguished_name \
+ 		-cert ca/certs/testsuiteCA.crt -batch >/dev/null 2>&1
+ 
+-	rm -rf ./openssl.cnf ./$EMAIL.csr cruft
+ fi
++
++if [ $LDAP_USER = 1 ]; then
++
++	$(cleanup)
++	$(setup)
++
++	$openssl req -new -nodes -out ldap-server.csr -keyout private/ldap-server.key \
++		-newkey $KEY_TYPE -config ./openssl.cnf \
++		-subj "/CN=ldap-server/OU=OpenLDAP Test Suite/O=OpenLDAP Foundation/ST=CA/C=US" \
++		-batch > /dev/null 2>&1
++
++	$openssl ca -out certs/ldap-server.crt -notext -config ./openssl.cnf -days 183000 -in ldap-server.csr \
++		-keyfile ca/private/testsuiteCA.key -extensions v3_req -cert ca/certs/testsuiteCA.crt \
++		-batch >/dev/null 2>&1
++fi
++
++$(cleanup)
+diff --git a/tests/data/tls/private/ldap-server.key b/tests/data/tls/private/ldap-server.key
+new file mode 100644
+index 000000000..3dbe24f3e
+--- /dev/null
++++ b/tests/data/tls/private/ldap-server.key
+@@ -0,0 +1,52 @@
++-----BEGIN PRIVATE KEY-----
++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
++g7XvX+klu0IVdEI/JQfstyDExiM7cA==
++-----END PRIVATE KEY-----
+diff --git a/tests/run.in b/tests/run.in
+index 4c51f54be..f6723af17 100644
+--- a/tests/run.in
++++ b/tests/run.in
+@@ -45,6 +45,7 @@ AC_wt=@BUILD_WT@
+ # overlays
+ AC_accesslog=accesslog@BUILD_ACCESSLOG@
+ AC_argon2=argon2@BUILD_PW_ARGON2@
++AC_auditlog=auditlog@BUILD_AUDITLOG@
+ AC_autoca=autoca@BUILD_AUTOCA@
+ AC_constraint=constraint@BUILD_CONSTRAINT@
+ AC_dds=dds@BUILD_DDS@
+@@ -83,7 +84,7 @@ if test "${AC_asyncmeta}" = "asyncmetamod" && test "${AC_LIBS_DYNAMIC}" = "stati
+ 	AC_meta="asyncmetano"
+ fi
+ export AC_ldap AC_mdb AC_meta AC_asyncmeta AC_monitor AC_null AC_perl AC_relay AC_sql \
+-	AC_accesslog AC_argon2 AC_autoca AC_constraint AC_dds AC_deref AC_dynlist \
++	AC_accesslog AC_argon2 AC_auditlog AC_autoca AC_constraint AC_dds AC_deref AC_dynlist \
+ 	AC_homedir AC_memberof AC_otp AC_pcache AC_ppolicy AC_refint AC_remoteauth \
+ 	AC_retcode AC_rwm AC_unique AC_syncprov AC_translucent \
+ 	AC_valsort \
+diff --git a/tests/scripts/defines.sh b/tests/scripts/defines.sh
+index 82514dfe8..670dea373 100755
+--- a/tests/scripts/defines.sh
++++ b/tests/scripts/defines.sh
+@@ -43,6 +43,7 @@ BACKSQL=${AC_sql-sqlno}
+ # overlays
+ ACCESSLOG=${AC_accesslog-accesslogno}
+ ARGON2=${AC_argon2-argon2no}
++AUDITLOG=${AC_auditlog-auditlogno}
+ AUTOCA=${AC_autoca-autocano}
+ CONSTRAINT=${AC_constraint-constraintno}
+ DDS=${AC_dds-ddsno}
+-- 
+2.33.0
+

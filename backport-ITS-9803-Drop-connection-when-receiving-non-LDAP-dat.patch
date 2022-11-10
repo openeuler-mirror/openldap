@@ -1,0 +1,44 @@
+From e8813b12b6188d5ba5f174ff8726c438c8ca4bfd Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Ond=C5=99ej=20Kuzn=C3=ADk?= <ondra@mistotebe.net>
+Date: Mon, 7 Mar 2022 10:06:49 +0000
+Subject: [PATCH] ITS#9803 Drop connection when receiving non-LDAP data
+
+---
+ libraries/libldap/result.c | 14 ++++++++++----
+ 1 file changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/libraries/libldap/result.c b/libraries/libldap/result.c
+index c1b4a457f..40ff1c172 100644
+--- a/libraries/libldap/result.c
++++ b/libraries/libldap/result.c
+@@ -506,6 +506,16 @@ nextresp3:
+ 		lc->lconn_ber = NULL;
+ 		break;
+ 
++	default:
++		/*
++		 * We read a BerElement that isn't LDAP or the stream has desync'd.
++		 * In either case, anything we read from now on is probably garbage,
++		 * just drop the connection.
++		 */
++		ber_free( ber, 1 );
++		lc->lconn_ber = NULL;
++		/* FALLTHRU */
++
+ 	case LBER_DEFAULT:
+ fail:
+ 		err = sock_errno();
+@@ -521,10 +531,6 @@ fail:
+ 		}
+ 		lc->lconn_status = 0;
+ 		return -1;
+-
+-	default:
+-		ld->ld_errno = LDAP_LOCAL_ERROR;
+-		return -1;
+ 	}
+ 
+ 	/* message id */
+-- 
+2.33.0
+
