@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.6.0
-Release:        4
+Release:        5
 Summary:        LDAP support libraries
 License:        OpenLDAP
 URL:            https://www.openldap.org/
@@ -209,12 +209,17 @@ pushd openldap-%{version}
 %configure \
         --enable-debug --enable-dynamic --enable-dynacl \
         --enable-cleartext --enable-crypt --enable-lmpasswd \
-        --enable-spasswd --enable-modules --enable-rewrite \
+        %if 0%{?build_cross} == 1
+        --disable-spasswd --with-cyrus-sasl=no \
+        %else
+        --enable-spasswd --with-cyrus-sasl \
+        %endif
+        --enable-modules --enable-rewrite \
         --enable-rlookups --enable-slapi --disable-slp \
         --enable-backends=mod \
         --enable-mdb=yes --enable-monitor=yes --disable-wt \
         --disable-sql --enable-overlays=mod --disable-static \
-        --with-cyrus-sasl --without-fetch --with-threads \
+        --without-fetch --with-threads \
         --with-pic --with-gnu-ld --libexecdir=%{_libdir}
 
 %make_build
@@ -460,6 +465,12 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Tue Feb 28 2023 zhujunhao <zhujunhao11@huawei.com> - 2.6.0-5
+- Type:bugfix
+- ID:NA
+- SUG:restart
+- DESC:add options for cross build
+
 * Mon Nov 7 2022 zhujunhao <zhujunhao11@huawei.com> - 2.6.0-4
 - Type:bugfix
 - ID:NA
