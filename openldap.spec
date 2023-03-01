@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.6.3
-Release:        1
+Release:        2
 Summary:        LDAP support libraries
 License:        OLDAP-2.8
 URL:            https://www.openldap.org/
@@ -134,12 +134,17 @@ pushd openldap-%{version}
 %configure \
         --enable-debug --enable-dynamic --enable-dynacl \
         --enable-cleartext --enable-crypt --enable-lmpasswd \
-        --enable-spasswd --enable-modules --enable-rewrite \
+        %if 0%{?build_cross} == 1
+        --disable-spasswd --with-cyrus-sasl=no \
+        %else
+        --enable-spasswd --with-cyrus-sasl \
+        %endif
+        --enable-modules --enable-rewrite \
         --enable-rlookups --enable-slapi --disable-slp \
         --enable-backends=mod \
         --enable-mdb=yes --enable-monitor=yes --disable-wt \
         --disable-sql --enable-overlays=mod --disable-static \
-        --with-cyrus-sasl --without-fetch --with-threads \
+        --without-fetch --with-threads \
         --with-pic --with-gnu-ld --libexecdir=%{_libdir}
 
 %make_build
@@ -386,6 +391,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Tue Feb 28 2023 zhujunhao <zhujunhao11@huawei.com> - 2.6.3-2
+- add options for build cross
+
 * Tue Feb 8 2023 zhujunhao <zhujunhao11@huawei.com> - 2.6.3-1
 - upgrade to 2.6.3
 
