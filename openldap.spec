@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.6.3
-Release:        1
+Release:        2
 Summary:        LDAP support libraries
 License:        OLDAP-2.8
 URL:            https://www.openldap.org/
@@ -386,6 +386,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Thu Mar 16 2023 zhujunhao <zhujunhao11@huawei.com> - 2.6.3-2
+- remove unused file
+
 * Tue Feb 8 2023 zhujunhao <zhujunhao11@huawei.com> - 2.6.3-1
 - upgrade to 2.6.3
 
