@@ -2,7 +2,7 @@
 
 Name:           openldap
 Version:        2.6.3
-Release:        2
+Release:        3
 Summary:        LDAP support libraries
 License:        OLDAP-2.8
 URL:            https://www.openldap.org/
@@ -146,9 +146,15 @@ pushd openldap-%{version}
 popd
 
 pushd ltb-project-openldap-ppolicy-check-password-1.1
+%if "%toolchain" == "clang"
+make LDAP_INC="-I../openldap-%{version}/include \
+ -I../openldap-%{version}/servers/slapd \
+ -I../openldap-%{version}/build-servers/include" CC=clang
+%else
 make LDAP_INC="-I../openldap-%{version}/include \
  -I../openldap-%{version}/servers/slapd \
  -I../openldap-%{version}/build-servers/include"
+%endif
 popd
 
 %install
@@ -386,6 +392,9 @@ popd
 %doc ltb-project-openldap-ppolicy-check-password-1.1/README.check_pwd
 
 %changelog
+* Tur May 30 2023 liyunfei <liyunfei33@huawei.com> - 2.6.3-3
+- add clang compile support
+
 * Thu Mar 16 2023 zhujunhao <zhujunhao11@huawei.com> - 2.6.3-2
 - remove unused file
 
